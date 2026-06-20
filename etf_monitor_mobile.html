@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ETF趋势监测器（手机版）</title>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#fff;--bg2:#f5f6fa;--bg3:#eef0f5;
+  --text:#111;--text2:#555;--text3:#888;--text4:#aaa;
+  --border:#e0e3ea;--border2:#cdd0d8;
+  --green:#1a9962;--green-bg:#e6f7f0;--green-bd:#9fe1cb;
+  --amber:#7c4f00;--amber-bg:#fff7e6;--amber-bd:#ffe082;
+  --red:#b33;--red-bg:#fdecea;--red-bd:#f7c1c1;
+  --blue:#1a5fc8;--blue-bg:#eef6ff;--blue-bd:#b5d4f4;
+  --r:8px;--rl:12px;
+}
+@media(prefers-color-scheme:dark){:root{
+  --bg:#1a1b1e;--bg2:#25262b;--bg3:#2c2e33;
+  --text:#e8e8e6;--text2:#a8a8a4;--text3:#737370;--text4:#4a4a47;
+  --border:#383a40;--border2:#454750;
+  --green:#1d9e75;--green-bg:#0a2e1f;--green-bd:#0f6e56;
+  --amber:#e08c2e;--amber-bg:#2a1f05;--amber-bd:#854f0b;
+  --red:#e24b4a;--red-bg:#2a0a0a;--red-bd:#791f1f;
+  --blue:#378add;--blue-bg:#051828;--blue-bd:#0c447c;
+}}
+body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei',sans-serif;
+     background:var(--bg2);color:var(--text);font-size:14px;min-height:100vh}
+.wrap{max-width:780px;margin:0 auto;padding:20px 16px}
+.hd{background:var(--bg);border:1px solid var(--border);border-radius:var(--rl);
+    padding:16px 20px;margin-bottom:14px}
+.hd-row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.hd h1{font-size:17px;font-weight:500;margin-bottom:3px}
+.hd p{font-size:12px;color:var(--text3);line-height:1.7}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.tag{font-size:11px;padding:2px 8px;border-radius:var(--r);background:var(--bg3);
+     color:var(--text3);border:1px solid var(--border)}
+.tag.green{background:var(--green-bg);color:var(--green);border-color:var(--green-bd)}
+.refbtn{display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:var(--r);
+        border:1px solid var(--border2);background:transparent;color:var(--text2);
+        cursor:pointer;font-size:13px;white-space:nowrap;flex-shrink:0}
+.refbtn:hover{background:var(--bg3)}
+.refbtn:disabled{opacity:.5;cursor:default}
+.notice{background:var(--amber-bg);border:1px solid var(--amber-bd);border-radius:var(--r);
+        padding:12px 16px;font-size:12px;color:var(--amber);margin-bottom:14px;line-height:1.8}
+.notice b{font-weight:600}
+.notice code{background:rgba(0,0,0,.07);padding:1px 5px;border-radius:3px;font-family:monospace;font-size:11px}
+.steps{display:flex;flex-direction:column;gap:6px;margin-top:8px}
+.step{display:flex;align-items:flex-start;gap:8px;font-size:12px}
+.step-num{background:var(--amber);color:#fff;border-radius:50%;width:18px;height:18px;
+          display:flex;align-items:center;justify-content:center;font-size:10px;
+          font-weight:700;flex-shrink:0;margin-top:1px}
+.panel{background:var(--bg);border:1px solid var(--border);border-radius:var(--rl);
+       padding:16px 20px;margin-bottom:14px}
+.slbl{font-size:11px;font-weight:500;color:var(--text4);text-transform:uppercase;
+      letter-spacing:.5px;margin-bottom:10px}
+.toggles{display:flex;gap:16px;flex-wrap:wrap}
+.ti_{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12px;color:var(--text2)}
+.tog{width:36px;height:20px;border-radius:10px;background:var(--border2);
+     position:relative;transition:background .2s;border:none;cursor:pointer;flex-shrink:0}
+.tog.on{background:var(--green)}
+.tog::after{content:'';position:absolute;width:14px;height:14px;border-radius:50%;
+            background:#fff;top:3px;left:3px;transition:left .2s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.tog.on::after{left:19px}
+.cards{display:flex;flex-direction:column;gap:12px}
+.card{background:var(--bg);border:1px solid var(--border);border-radius:var(--rl);overflow:hidden}
+.ctop{display:flex;justify-content:space-between;align-items:flex-start;padding:14px 18px 12px}
+.cname{font-size:15px;font-weight:500}
+.cmeta{font-size:11px;color:var(--text3);margin-top:3px}
+.pbox{text-align:right}
+.pnum{font-size:22px;font-weight:500;line-height:1.1}
+.pchg{font-size:12px;margin-top:2px}
+.sbar{display:flex;align-items:center;gap:10px;padding:10px 18px;border-top:1px solid var(--border)}
+.sdot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.slb{font-size:13px;font-weight:500}
+.tbg{font-size:10px;padding:2px 7px;border-radius:4px;font-weight:500}
+.spos{margin-left:auto;font-size:12px;color:var(--text3)}
+.spos b{color:var(--text)}
+.ast{padding:8px 18px;font-size:12px;display:flex;align-items:center;gap:8px;
+     border-top:1px solid var(--border)}
+.ast.g{background:var(--green-bg);color:var(--green);border-top-color:var(--green-bd)}
+.ast.a{background:var(--amber-bg);color:var(--amber);border-top-color:var(--amber-bd)}
+.ast.r{background:var(--red-bg);color:var(--red);border-top-color:var(--red-bd)}
+.mets{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid var(--border)}
+.met{padding:10px 14px;border-right:1px solid var(--border)}
+.met:last-child{border-right:none}
+.ml{font-size:10px;color:var(--text4);text-transform:uppercase;letter-spacing:.4px;margin-bottom:4px}
+.mv{font-size:14px;font-weight:500}
+.ms{font-size:10px;color:var(--text3);margin-top:2px}
+.stops{display:flex;gap:8px;padding:10px 18px;border-top:1px solid var(--border);flex-wrap:wrap}
+.sc{font-size:11px;padding:4px 10px;border-radius:var(--r)}
+.sc.atr{background:var(--red-bg);color:var(--red)}
+.sc.fix{background:var(--amber-bg);color:var(--amber)}
+.marow{padding:8px 18px;border-top:1px solid var(--border);font-size:11px;color:var(--text3);
+       display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mv2{display:inline-flex;flex-direction:column;align-items:center;gap:1px}
+.mlb2{font-size:9px;color:var(--text4)}
+.posrow{padding:10px 18px;border-top:1px solid var(--border);display:flex;
+        align-items:center;gap:10px;flex-wrap:wrap;font-size:12px;color:var(--text2)}
+.bh{background:var(--green-bg);color:var(--green);padding:2px 8px;border-radius:var(--r);
+    font-size:11px;font-weight:500}
+.bc{background:var(--bg3);color:var(--text3);padding:2px 8px;border-radius:var(--r);font-size:11px}
+.pbtn{padding:4px 12px;border-radius:var(--r);border:1px solid var(--border2);
+      background:transparent;color:var(--text2);cursor:pointer;font-size:11px}
+.pbtn:hover{background:var(--bg3)}
+.empty{text-align:center;padding:48px 20px}
+.empty i{font-size:40px;display:block;margin-bottom:12px;color:var(--text4)}
+.empty h3{font-size:15px;font-weight:500;margin-bottom:8px}
+.empty p{font-size:12px;color:var(--text3);line-height:1.7}
+.footer{text-align:center;font-size:11px;color:var(--text4);margin-top:10px;padding-bottom:20px}
+         z-index:999;align-items:center;justify-content:center}
+      width:300px;border:1px solid var(--border);margin:16px}
+        background:var(--bg);color:var(--text);font-size:14px;outline:none;margin-bottom:16px}
+              background:transparent;color:var(--text2);cursor:pointer;font-size:13px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{display:inline-block;animation:spin 1s linear infinite}
+
+.today-summary{background:#fff;border:1px solid var(--border);border-radius:var(--rl);padding:14px 18px;margin-bottom:14px}
+.today-summary.empty-sum{background:var(--bg3);border-style:dashed}
+.ts-title{font-size:13px;font-weight:600;color:var(--text);margin-bottom:8px}
+.ts-sub{font-size:12px;color:var(--text3)}
+.ts-list{display:flex;flex-wrap:wrap;gap:8px}
+.sum-item{display:flex;align-items:center;gap:8px;padding:6px 12px;border:1px solid;border-radius:var(--r);
+  text-decoration:none;color:var(--text);font-size:12px;background:var(--bg);transition:transform .1s}
+.sum-item:hover{transform:translateY(-1px)}
+.sum-name{font-weight:500}
+.sum-tag{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+
+.postrack{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;
+  padding:8px 12px;margin-top:8px;border-radius:var(--r);background:var(--bg2);font-size:12px}
+.postrack.holding{background:var(--green-bg)}
+.pt-info{color:var(--text2)}
+.pt-tag{font-weight:600;color:var(--green);margin-right:4px}
+.pt-btn{padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);
+  font-size:12px;cursor:pointer;color:var(--text2)}
+.pt-btn:hover{background:var(--bg3)}
+.posform{display:flex;gap:10px;align-items:center;flex-wrap:wrap;padding:10px 12px;
+  margin-top:6px;border-radius:var(--r);background:var(--bg3);font-size:12px}
+.posform label{display:flex;align-items:center;gap:4px;color:var(--text2)}
+.posform input{padding:4px 6px;border:1px solid var(--border2);border-radius:4px;font-size:12px;width:100px}
+.pt-confirm{padding:4px 12px;border-radius:6px;border:none;background:var(--green);color:#fff;
+  font-size:12px;cursor:pointer;font-weight:500}
+.pt-cancel{padding:4px 12px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);
+  font-size:12px;cursor:pointer;color:var(--text3)}
+.review-section{background:var(--bg);border:1px solid var(--border);border-radius:var(--rl);
+  padding:14px 18px;margin-top:14px}
+.review-section h3{font-size:13px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.rv-table{width:100%;border-collapse:collapse;font-size:12px}
+.rv-table th{text-align:left;padding:5px 8px;color:var(--text3);border-bottom:1px solid var(--border);font-weight:500}
+.rv-table td{padding:5px 8px;border-bottom:1px solid var(--border)}
+.rv-empty{color:var(--text3);font-size:12px;padding:4px 0}
+.rv-stats{font-size:12px;color:var(--text2);margin-bottom:6px}
+.rv-del{padding:2px 8px;border:1px solid var(--border2);border-radius:4px;background:var(--bg);
+  font-size:11px;color:var(--text3);cursor:pointer}
+.rv-del:hover{background:var(--red-bg);color:var(--red);border-color:var(--red-bd)}
+
+.pt-action{padding:8px 12px;margin-top:6px;border-radius:var(--r);font-size:12px;font-weight:500}
+.pt-action.pt-reduce{background:var(--amber-bg);color:var(--amber)}
+.pt-action.pt-exit{background:var(--red-bg);color:var(--red)}
+.pt-del{padding:4px 10px;border-radius:6px;border:1px solid var(--border2);background:var(--bg);
+  font-size:11px;cursor:pointer;color:var(--text4);margin-left:auto}
+.pt-del:hover{color:var(--red);border-color:var(--red-bd)}
+
+.pt-undo{padding:2px 8px;border:1px solid var(--border2);border-radius:4px;background:var(--bg);
+  font-size:11px;color:var(--text3);cursor:pointer;margin-left:6px}
+.pt-undo:hover{color:var(--amber);border-color:var(--amber-bd)}
+.rv-undo{padding:2px 8px;border:1px solid var(--border2);border-radius:4px;background:var(--bg);
+  font-size:11px;color:var(--text3);cursor:pointer;margin-right:4px}
+.rv-undo:hover{color:var(--blue);border-color:var(--blue-bd)}
+
+.group-title{font-size:12px;font-weight:600;color:var(--text3);margin:14px 2px 8px;
+  text-transform:uppercase;letter-spacing:.5px;padding-top:6px;border-top:1px solid var(--border)}
+
+.recent-alert{background:var(--blue-bg);border-left:3px solid var(--blue);color:var(--blue);
+  padding:8px 12px;border-radius:0 var(--r) var(--r) 0;font-size:12px;margin-top:8px;line-height:1.6}
+
+.strong-hint{background:var(--bg2);border-left:3px solid var(--text4);color:var(--text3);
+  padding:8px 12px;border-radius:0 var(--r) var(--r) 0;font-size:11.5px;margin-top:8px;line-height:1.7}
+.strong-hint code{background:var(--bg3);padding:1px 5px;border-radius:4px;color:var(--text2)}
+
+.pt-btns{display:flex;gap:6px}
+.pt-add-btn{color:var(--blue);border-color:var(--blue-bd)}
+.pt-add-btn:hover{background:var(--blue-bg)}
+.pt-action.pt-add{background:var(--blue-bg);color:var(--blue)}
+
+.recent-row{margin-bottom:4px;line-height:1.6}
+.recent-row:last-child{margin-bottom:0}
+.recent-note{font-size:11px;color:var(--blue);opacity:.8;margin-top:6px;border-top:1px solid var(--blue-bd);padding-top:5px}
+
+.hd-actions{display:flex;flex-direction:column;align-items:stretch;gap:6px;flex-shrink:0}
+.hd-actions .refbtn{justify-content:center}
+.expbtn{display:flex;align-items:center;justify-content:center;gap:5px;padding:7px 14px;
+  border-radius:var(--r);cursor:pointer;font-size:12px;white-space:nowrap;
+  background:var(--blue-bg);color:var(--blue);border:1px solid var(--blue-bd);
+  font-weight:500;transition:background .15s}
+.expbtn:hover{background:#dbeeff}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<div class="hd">
+  <div class="hd-row">
+    <div>
+      <h1>📈 ETF趋势监测器</h1>
+      <p>均线系统 · ATR止损 · ADX趋势强度 · 万1.2交易成本</p>
+      <div class="tags">
+        <span class="tag">高弹性 MA10/30/60 ATR×2.5</span>
+        <span class="tag">宽基 MA20/60/120 ATR×3.0</span>
+        <span class="tag" id="data-tag">读取本地数据</span>
+      </div>
+    </div>
+    <div class="hd-actions">
+      <button class="refbtn" id="refbtn" onclick="loadData()">
+        <span id="reficon">↻</span>刷新信号
+      </button>
+      <button class="expbtn" onclick="exportPositions()" title="导出持仓供盘中预警脚本使用">
+        ↓ 导出持仓
+      </button>
+    </div>
+  </div>
+</div>
+
+
+<div class="panel">
+  <div class="slbl">显示设置</div>
+  <div class="toggles">
+    <label class="ti_"><button class="tog" id="t-stop" onclick="tgl('stop')"></button>止损价位</label>
+    <label class="ti_"><button class="tog" id="t-ma"   onclick="tgl('ma')"></button>均线数值</label>
+    
+  </div>
+</div>
+
+<div id="summary"></div>
+<div class="cards" id="cards">
+  <div class="empty">
+    📄
+    <h3>未找到数据文件</h3>
+    <p>请先运行 <code style="background:var(--bg3);padding:2px 6px;border-radius:4px">python etf_fetch.py</code> 生成数据<br>
+    然后点「刷新信号」</p>
+  </div>
+</div>
+
+<div id="review"></div>
+<div class="footer" id="footer"></div>
+</div>
+
+  </div>
+</div>
+
+<script>
+let opts={stop:false,ma:false}, etfData=null;
+let positions=loadPositions(), history=loadHistory();
+
+// 交易成本：双边各按 万1.2，单笔最低5元
+const FEE_RATE=0.00012, FEE_MIN=5;
+function calcFee(amount){ return Math.max(amount*FEE_RATE, FEE_MIN); }
+
+// 旧版数据结构迁移：早期版本用 {entry_date,entry_price,shares,entry_fee} 单笔字段，
+// 现统一用 lots[] 数组(支持多笔建仓)。加载时自动转换，避免 pos.lots undefined 报错。
+function migratePosition(pos){
+  if(pos.lots) return pos; // 已是新结构
+  pos.lots=[{date:pos.entry_date,price:pos.entry_price,shares:pos.shares,
+    fee:pos.entry_fee!==undefined?pos.entry_fee:calcFee(pos.entry_price*pos.shares)}];
+  delete pos.entry_date; delete pos.entry_price; delete pos.shares; delete pos.entry_fee;
+  return pos;
+}
+function migrateHistoryEntry(h){
+  if(h.lots) return h;
+  h.lots=[{date:h.entry_date,price:h.entry_price,shares:h.shares,
+    fee:h.entry_fee!==undefined?h.entry_fee:calcFee(h.entry_price*h.shares)}];
+  delete h.entry_date; delete h.entry_price; delete h.shares; delete h.entry_fee;
+  return h;
+}
+
+function loadPositions(){
+  let p; try{p=JSON.parse(localStorage.getItem('etf_positions')||'{}')}catch(e){p={}}
+  for(const code in p) p[code]=migratePosition(p[code]);
+  return p;
+}
+function savePositions(){try{localStorage.setItem('etf_positions',JSON.stringify(positions))}catch(e){}}
+function loadHistory(){
+  let h; try{h=JSON.parse(localStorage.getItem('etf_trade_history')||'[]')}catch(e){h=[]}
+  return h.map(migrateHistoryEntry);
+}
+function saveHistory(){try{localStorage.setItem('etf_trade_history',JSON.stringify(history))}catch(e){}}
+
+// ── 持仓辅助：支持多笔建仓(lots) ──
+function totalShares(pos){ return pos.lots.reduce((s,l)=>s+l.shares,0); }
+// 含手续费的总成本(元)：每笔建仓的 价格×份数 + 该笔手续费
+function totalCost(pos){ return pos.lots.reduce((s,l)=>s+l.price*l.shares+l.fee,0); }
+// 加权平均成本价(不含手续费，仅用于展示)
+function avgEntryPrice(pos){ const t=totalShares(pos); return pos.lots.reduce((s,l)=>s+l.price*l.shares,0)/t; }
+
+// 某次卖出的净收益率：按"卖出份数/总份数"分摊总成本(含全部建仓本金+手续费)，扣除本次卖出手续费
+function trancheReturn(pos, sellShares, sellPrice){
+  const total=totalShares(pos);
+  const cost=totalCost(pos)*(sellShares/total);
+  const proceeds=sellPrice*sellShares-calcFee(sellPrice*sellShares);
+  return proceeds/cost-1;
+}
+
+// 未实现浮盈：只扣"已实际发生"的入场手续费，不预估卖出手续费
+// (卖出手续费取决于最终成交金额，补仓后可能超过5元下限，此刻无法确定，故不预估)
+function unrealizedReturn(pos, price){
+  const total=totalShares(pos);
+  const cost=totalCost(pos)*(pos.remaining_shares/total); // 剩余份数分摊的含(入场)费成本
+  const mktVal=price*pos.remaining_shares;
+  return mktVal/cost-1;
+}
+
+// 根据"实际持仓状态(剩余份数/总建仓份数)"将信号翻译为可执行建议
+// pos: positions[code] 或 null。"全仓"=全部建仓份数之和(每次补仓会重新定义100%基准)
+// 信号给出的目标仓位(sig.pos_: 0/0.5/1) 低于当前剩余比例时 → 提示减仓/清仓
+// 若已持仓且今天出现新的入场触发(如MA10二级触发回踩) → 提示"可考虑补仓"
+function actualSignal(sig, pos){
+  if(pos){
+    const total=totalShares(pos);
+    const remain=pos.remaining_shares/total, target=sig.pos_;
+    if(target < remain - 0.001){
+      const sellShares=round100((remain-target)*total, pos.remaining_shares);
+      if(target<=0){
+        // 区分原因：down=趋势/止损真正走坏(必须执行)；chop=ADX强度不足(建议观望，非强制)
+        const reasonTag = sig.zeroReason==='chop' ? '（震荡观望，非止损）' : '（趋势走坏）';
+        const reasonColor = sig.zeroReason==='chop' ? 'var(--amber)' : 'var(--red)';
+        return {type:`建议清仓${reasonTag}`,color:reasonColor,dot:reasonColor,sellShares:pos.remaining_shares,toFrac:0,addSignal:false,zeroReason:sig.zeroReason};
+      }
+      return {type:`建议减仓至${Math.round(target*100)}%`,color:'var(--amber)',dot:'var(--amber)',sellShares,toFrac:target,addSignal:false};
+    }
+    if(sig.entry && target>=remain-0.001){
+      return {type:'可考虑补仓',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true};
+    }
+    if(sig.trend_strong) return {type:'持仓中（趋势强）',color:'var(--green)',dot:'var(--green)',sellShares:0,addSignal:false};
+    if(sig.trend_weak)   return {type:'持仓中（趋势偏弱）',color:'var(--amber)',dot:'var(--amber)',sellShares:0,addSignal:false};
+    return {type:'持仓中',color:'var(--green)',dot:'var(--green)',sellShares:0,addSignal:false};
+  }
+  if(sig.entry&&sig.trend_strong) return {type:'建议入场（全仓）',color:'var(--green)',dot:'var(--green)',sellShares:0,addSignal:false};
+  if(sig.entry&&sig.trend_weak)   return {type:'建议入场（半仓）',color:'var(--green)',dot:'#73c69e',sellShares:0,addSignal:false};
+  return {type:'空仓观望',color:'var(--text3)',dot:'var(--text4)',sellShares:0,addSignal:false};
+}
+
+// 把建议卖出份数四舍五入到100的整数倍（ETF最小交易单位=1手=100份），不超过剩余份数，至少100
+function round100(n, max){
+  let r=Math.round(n/100)*100;
+  if(r<=0) r=100;
+  return Math.min(r, max);
+}
+
+function togglePosForm(code,formId){
+  const el=document.getElementById((formId||'pf-')+code);
+  if(el) el.style.display = el.style.display==='none'?'flex':'none';
+}
+
+// 买入 = 入场 = 这只ETF的"全仓"基准(100%)，记录实际买入份数(第一笔lot)
+function confirmEntry(code){
+  const d=document.getElementById('ed-'+code).value;
+  const p=parseFloat(document.getElementById('ep-'+code).value);
+  const sh=parseInt(document.getElementById('es-'+code).value);
+  if(!d||!p||p<=0||!sh||sh<=0){alert('请输入有效的入场日期、价格和份数');return;}
+  const fee=calcFee(p*sh);
+  positions[code]={lots:[{date:d,price:p,shares:sh,fee}],remaining_shares:sh,sells:[]};
+  savePositions(); renderAll();
+}
+
+// 补仓：在已有持仓上新增一笔建仓记录(lot)。"全仓"基准重新定义为补仓后的总份数
+function confirmAddLot(code){
+  const d=document.getElementById('ad-'+code).value;
+  const p=parseFloat(document.getElementById('ap-'+code).value);
+  const sh=parseInt(document.getElementById('as-'+code).value);
+  if(!d||!p||p<=0||!sh||sh<=0){alert('请输入有效的补仓日期、价格和份数');return;}
+  const pos=positions[code];
+  const fee=calcFee(p*sh);
+  pos.lots.push({date:d,price:p,shares:sh,fee});
+  pos.remaining_shares+=sh;
+  savePositions(); renderAll();
+}
+
+// 撤销最近一次补仓：移除最后一笔lot(仅当该lot尚未被部分卖出，即remaining足够时可撤销)
+function undoLastLot(code){
+  const pos=positions[code];
+  if(!pos||pos.lots.length<=1) return; // 至少保留一笔(首次建仓)
+  const last=pos.lots[pos.lots.length-1];
+  if(last.shares>pos.remaining_shares){
+    alert('该笔补仓的部分份数已被卖出，无法直接撤销');return;
+  }
+  pos.lots.pop();
+  pos.remaining_shares-=last.shares;
+  savePositions(); renderAll();
+}
+
+// 卖出(减仓/清仓)：sh = 本次卖出份数（不超过剩余份数）
+// remaining_shares 减少sh；若减到0则归档到复盘历史
+function confirmSell(code){
+  const d=document.getElementById('xd-'+code).value;
+  const p=parseFloat(document.getElementById('xp-'+code).value);
+  const sh=parseInt(document.getElementById('xs-'+code).value);
+  const pos=positions[code];
+  if(!d||!p||p<=0||!sh||sh<=0){alert('请输入有效的卖出日期、价格和份数');return;}
+  if(sh>pos.remaining_shares){alert(`卖出份数不能超过剩余持仓(${pos.remaining_shares}份)`);return;}
+  pos.sells.push({date:d,price:p,shares:sh});
+  pos.remaining_shares-=sh;
+
+  if(pos.remaining_shares<=0){
+    const etf=etfData.etfs[code];
+    const total=totalShares(pos);
+    const totalRet=pos.sells.reduce((s,x)=>s+(x.shares/total)*trancheReturn(pos,x.shares,x.price),0);
+    const firstDate=pos.lots[0].date;
+    const lastDate=pos.sells[pos.sells.length-1].date;
+    const days=Math.max(0,Math.round((new Date(lastDate)-new Date(firstDate))/86400000));
+    history.unshift({code,name:etf.rt_name||etf.name,
+      lots:pos.lots,
+      exit_date:lastDate,ret:totalRet,days,n_sells:pos.sells.length,
+      sells:pos.sells});
+    delete positions[code];
+    saveHistory();
+  }
+  savePositions(); renderAll();
+}
+
+// 撤销上一次减仓：把最近一笔卖出记录退回，份数加回剩余持仓
+function undoLastSell(code){
+  const pos=positions[code];
+  if(!pos||!pos.sells||pos.sells.length===0) return;
+  const last=pos.sells.pop();
+  pos.remaining_shares+=last.shares;
+  savePositions(); renderAll();
+}
+
+function deleteTrade(idx){
+  if(!confirm('确认删除这条复盘记录？此操作不可恢复(若要撤销清仓请用"撤销清仓")。')) return;
+  history.splice(idx,1); saveHistory(); renderAll();
+}
+
+// 撤销清仓：把复盘记录恢复为"持仓中"，去掉最后一次卖出，可重新标记
+function undoClose(idx){
+  const h=history[idx];
+  const last=h.sells[h.sells.length-1];
+  positions[h.code]={
+    lots:h.lots,
+    remaining_shares:last.shares,
+    sells:h.sells.slice(0,-1)
+  };
+  history.splice(idx,1);
+  savePositions(); saveHistory(); renderAll();
+}
+
+function clearPosition(code){
+  if(!confirm('确认删除该持仓记录？此操作不会记入复盘历史。')) return;
+  delete positions[code]; savePositions(); renderAll();
+}
+
+/* ── 读取本地JSON ── */
+async function loadData(){
+  const btn=document.getElementById('refbtn');
+  const icon=document.getElementById('reficon');
+  btn.disabled=true; icon.textContent='⟳';
+  try{
+    // 从 GitHub Gist 读取数据（手机版，无需本地服务器）
+    const GIST_RAW='https://gist.githubusercontent.com/weisi-gu/5eb0552f9c2ebe46889e4978add15069/raw/etf_data.json';
+    const url=GIST_RAW+'?t='+Date.now();
+    let r;
+    try{
+      r=await fetch(url);
+    }catch(fetchErr){
+      throw new Error('网络请求失败: '+fetchErr.message+' (请检查网络连接)');
+    }
+    if(!r.ok) throw new Error('数据加载失败 '+r.status+' — 请确认电脑已运行 etf_fetch.py 并成功同步到 Gist');
+    etfData=await r.json();
+    renderAll();
+    const tag=document.getElementById('data-tag');
+    tag.textContent='数据：'+etfData.update_time;
+    tag.className='tag green';
+    document.getElementById('footer').textContent='信号时间：'+etfData.update_time;
+  }catch(err){
+    console.error('loadData error:',err);
+    document.getElementById('cards').innerHTML=`
+      <div class="empty">
+        ⚠
+        <h3 style="margin-bottom:8px">加载失败</h3>
+        <p style="color:var(--text3);margin-bottom:6px">${err.message}</p>
+        <p style="color:var(--text4);font-size:11px">提示：确认电脑已运行 etf_fetch.py，数据会自动同步到 GitHub Gist</p>
+      </div>`;
+  }finally{
+    btn.disabled=false; icon.textContent='↻';
+  }
+}
+
+/* ── 技术指标（与回测一致）── */
+const ma=(a,w)=>a.map((_,i)=>i<w-1?null:a.slice(i-w+1,i+1).reduce((x,y)=>x+y,0)/w);
+
+function calcInd(bars,fast,mid,slow){
+  const C=bars.map(b=>b[2]),H=bars.map(b=>b[3]),L=bars.map(b=>b[4]),V=bars.map(b=>b[5]);
+  // bars格式: [date, open, close, high, low, vol]
+  const maf=ma(C,fast),mam=ma(C,mid),mas=ma(C,slow);
+  const tr=C.map((_,i)=>i===0?H[i]-L[i]:Math.max(H[i]-L[i],Math.abs(H[i]-C[i-1]),Math.abs(L[i]-C[i-1])));
+  const atr14=ma(tr,14);
+  const rp=H.map((_,i)=>i===0?0:H[i]-H[i-1]),rm=H.map((_,i)=>i===0?0:L[i-1]-L[i]);
+  const pdm=rp.map((p,i)=>p>rm[i]&&p>0?p:0),mdm=rm.map((m,i)=>m>rp[i]&&m>0?m:0);
+  const a14=ma(tr,14);
+  const pdi=ma(pdm,14).map((p,i)=>a14[i]?100*p/a14[i]:0);
+  const mdi=ma(mdm,14).map((m,i)=>a14[i]?100*m/a14[i]:0);
+  const dx=pdi.map((p,i)=>{const s=p+mdi[i];return s?100*Math.abs(p-mdi[i])/s:0;});
+  const adx=ma(dx,14);
+  const slope=maf.map((m,i)=>{const p=maf[i-5];return m&&p?(m-p)/p*100:null;});
+  return bars.map((_,i)=>({
+    date:bars[i][0],close:C[i],high:H[i],low:L[i],
+    maf:maf[i],mam:mam[i],mas:mas[i],
+    atr14:atr14[i],pdi:pdi[i],mdi:mdi[i],adx:adx[i],slope:slope[i]
+  })).filter(r=>r.maf&&r.mam&&r.mas&&r.atr14&&r.adx!=null);
+}
+
+// 单日的入场/趋势判定，供 getSignal 和"近期信号回顾"复用
+// ma10Trigger=true时：强趋势(ts)中价格回踩快线(MA10/20 ±1.5%~2%)也视为入场触发
+function entryAt(ind,i,ma10Trigger){
+  if(i<1) return null;
+  const r=ind[i],p=ind[i-1];
+  const sl=r.slope||0;
+  const ts=r.maf>r.mam&&r.mam>r.mas&&r.close>r.mam&&sl>0.2&&r.adx>=25;
+  const tw=r.maf>r.mam&&r.mam>r.mas&&r.close>r.mam&&sl>0&&r.adx>=18&&r.adx<25;
+  const chop=r.adx<18;
+  const cxup=p.maf<=p.mam&&r.maf>r.mam, bnce=r.low<=r.mam*1.015&&r.mam*0.99<=r.close&&r.close<=r.mam*1.02;
+  let bfast=false, viaFast=false;
+  if(ma10Trigger&&ts){
+    bfast=r.low<=r.maf*1.015&&r.maf*0.99<=r.close&&r.close<=r.maf*1.02;
+    viaFast=bfast;
+  }
+  const entry=(cxup||bnce||bfast)&&(ts||tw)&&!chop;
+  return{entry,ts,tw,chop,cxup,bnce,bfast,date:r.date,close:r.close};
+}
+
+// 回顾最近几个交易日(不含今天)是否出现过未被捕捉的入场信号
+// lookback=4 → 检查"昨天"到"4天前"，共4个交易日
+function recentEntrySignals(ind,lookback=4,ma10Trigger){
+  const n=ind.length, out=[];
+  for(let back=1;back<=lookback;back++){
+    const i=n-1-back;
+    const e=entryAt(ind,i,ma10Trigger);
+    if(e&&e.entry) out.push({date:e.date,type:e.ts?'全仓':'半仓',price:e.close,
+      daysAgo:back,via:e.bfast?'回踩快线':e.cxup?'金叉':'回踩'});
+  }
+  return out; // daysAgo升序：最近的信号排第一
+}
+
+function getSignal(ind,cfg){
+  if(ind.length<3) return{type:'数据不足',color:'var(--text4)',pos_:0,dot:'var(--text4)',tbadge:'',alert_:''};
+  const r=ind[ind.length-1],p=ind[ind.length-2];
+  const sl=r.slope||0;
+  const e=entryAt(ind,ind.length-1,cfg.ma10_trigger);
+  const{ts,tw,chop,entry,cxup,bnce,bfast}=e;
+  const down=r.maf<r.mam||r.close<r.mas;
+  const cxdn=p.maf>=p.mam&&r.maf<r.mam, brk=r.close<r.mas;
+  const exit_=cxdn||brk;
+  const atrs=r.close-cfg.atr_n*r.atr14, fxs=r.close*(1-cfg.fs);
+  let type,color,pos_,dot,zeroReason='';
+  if(chop||down){
+    type='空仓观望';color='var(--text3)';pos_=0;dot='var(--text4)';
+    // 区分"为什么是空仓"：止损/趋势走坏 vs 强度不足但方向未必差，纯展示用，不影响pos_判断
+    zeroReason = down ? 'down' : 'chop';
+  }
+  else if(entry&&ts){type='建议入场（全仓）';color='var(--green)';pos_=1;dot='var(--green)';}
+  else if(entry&&tw){type='建议入场（半仓）';color='var(--green)';pos_=.5;dot='#73c69e';}
+  else if(ts&&!exit_){type='持仓中（趋势强）';color='var(--green)';pos_=1;dot='var(--green)';}
+  else if(tw&&!exit_){type='持仓中（趋势偏弱）';color='var(--amber)';pos_=.5;dot='var(--amber)';}
+  else if(exit_){type='建议出场';color='var(--red)';pos_=0;dot='var(--red)';}
+  else{type='空仓观望';color='var(--text3)';pos_=0;dot='var(--text4)';}
+  let alert_='';
+  if(cxup)   alert_=`g|⚡ 金叉 — MA${cfg.fast} 上穿 MA${cfg.mid}`;
+  else if(cxdn) alert_=`r|⚡ 死叉 — MA${cfg.fast} 下穿 MA${cfg.mid}`;
+  else if(bnce&&(ts||tw))  alert_=`a|📍 回踩均线区间 — 观察收盘能否站稳`;
+  else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast}（强趋势二级触发）— 观察收盘能否站稳`;
+  const tbadge=ts?`<span class="tbg" style="background:var(--green-bg);color:var(--green)">趋势强</span>`
+    :tw?`<span class="tbg" style="background:var(--amber-bg);color:var(--amber)">趋势偏弱</span>`
+    :`<span class="tbg" style="background:var(--bg3);color:var(--text3)">无趋势</span>`;
+  return{type,color,pos_,dot,alert_,tbadge,zeroReason,
+    atrs:atrs.toFixed(3),fxs:fxs.toFixed(3),atrpct:((1-atrs/(r.close||1))*100).toFixed(1),
+    maf:r.maf.toFixed(3),mam:r.mam.toFixed(3),mas:r.mas.toFixed(3),
+    adx:r.adx.toFixed(1),pdi:r.pdi.toFixed(1),mdi:r.mdi.toFixed(1),
+    slope:sl.toFixed(2),date:r.date,atr14:r.atr14.toFixed(4),close:r.close,
+    trend_strong:ts,trend_weak:tw,chop,entry,atr_stop:atrs,fix_stop:fxs,maf:r.maf.toFixed(3),mam:r.mam.toFixed(3)};
+}
+
+function buildCard(code,etf,sig,holding,act,recent){
+  const price=etf.price||0, chg=etf.chg||0;
+  const chgC=chg>=0?'var(--green)':'var(--red)';
+  const today=new Date().toISOString().slice(0,10);
+
+  // 持仓操作区：标记入场(份数) / 显示建仓明细+剩余份数+浮盈+补仓/减仓/清仓
+  let postrack;
+  if(holding){
+    const pos=positions[code];
+    const total=totalShares(pos);
+    const avgP=avgEntryPrice(pos);
+    // 浮盈：只扣已发生的入场手续费，不预估卖出手续费(补仓后可能超5元下限，此刻未知)
+    const retPct=price>0?unrealizedReturn(pos,price)*100:0;
+    const firstDate=pos.lots[0].date;
+    const days=Math.max(0,Math.round((Date.now()-new Date(firstDate))/86400000));
+    const retC=retPct>=0?'var(--green)':'var(--red)';
+    const remainPct=Math.round(pos.remaining_shares/total*100);
+    const mktVal=price*pos.remaining_shares;
+    const entryCostShare=totalCost(pos)*(pos.remaining_shares/total); // 剩余份数分摊的含(入场)费成本
+    const pnlYuan=price*pos.remaining_shares - entryCostShare;
+    const pnlC=pnlYuan>=0?'var(--green)':'var(--red)';
+
+    // 建仓明细：单笔简洁显示；多笔显示均价+汇总，并列出每笔
+    let entryDesc;
+    if(pos.lots.length===1){
+      entryDesc=`入场 ${pos.lots[0].price} × ${pos.lots[0].shares}份 · ${pos.lots[0].date}`;
+    }else{
+      const lotDesc=pos.lots.map(l=>`${l.price}×${l.shares}份(${l.date})`).join(' + ');
+      entryDesc=`均价${avgP.toFixed(3)} · 共${total}份(分${pos.lots.length}笔) · 首次${firstDate}<br>
+        <span style="font-size:11px;color:var(--text3)">${lotDesc}</span>
+        <button class="pt-undo" onclick="undoLastLot('${code}')" title="撤销最近一次补仓">撤销上次补仓</button>`;
+    }
+
+    let soldNote='';
+    if(pos.sells&&pos.sells.length>0){
+      const soldShares=pos.sells.reduce((s,x)=>s+x.shares,0);
+      const realized=pos.sells.reduce((s,x)=>s+(x.shares/total)*trancheReturn(pos,x.shares,x.price),0);
+      const rc=realized>=0?'var(--green)':'var(--red)';
+      soldNote=` · 已减仓${soldShares}份，净兑现收益<b style="color:${rc}">${realized>=0?'+':''}${(realized*100).toFixed(2)}%</b>
+        <button class="pt-undo" onclick="undoLastSell('${code}')" title="撤销最近一次减仓">撤销上次减仓</button>`;
+    }
+
+    let actionHtml='';
+    if(act.sellShares>0){
+      actionHtml=`<div class="pt-action ${act.toFrac<=0?'pt-exit':'pt-reduce'}">
+        🔔 ${act.type} — 建议卖出 <b>${act.sellShares}份</b>（约${(act.sellShares*price).toFixed(0)}元，剩余持仓的${Math.round(act.sellShares/pos.remaining_shares*100)}%）
+      </div>`;
+    }else if(act.addSignal){
+      actionHtml=`<div class="pt-action pt-add">
+        🔔 ${act.type} — 今日出现回踩快线信号(MA10二级触发)，趋势仍强，若想加大仓位可点击"补仓"
+      </div>`;
+    }
+
+    const defaultShares=act.sellShares>0?act.sellShares:pos.remaining_shares;
+    postrack=`<div class="postrack holding">
+      <div class="pt-info"><span class="pt-tag">持仓中</span>
+        ${entryDesc} · 已持 <b>${days}</b> 天<br>
+        剩余 <b>${pos.remaining_shares}份</b>(${remainPct}%) · 现值${mktVal.toFixed(0)}元
+        · 浮盈(扣入场费) <b style="color:${retC}">${retPct>=0?'+':''}${retPct.toFixed(2)}%</b>
+        (<span style="color:${pnlC}">${pnlYuan>=0?'+':''}${pnlYuan.toFixed(0)}元</span>)${soldNote}</div>
+      <div class="pt-btns">
+        <button class="pt-btn pt-add-btn" onclick="togglePosForm('${code}','af-')">➕ 补仓</button>
+        <button class="pt-btn" onclick="togglePosForm('${code}','pf-')">标记卖出</button>
+      </div>
+    </div>
+    ${actionHtml}
+    <div class="posform" id="af-${code}" style="display:none">
+      <label>补仓日期 <input type="date" id="ad-${code}" value="${today}"></label>
+      <label>补仓价格 <input type="number" step="0.001" id="ap-${code}" value="${price.toFixed(3)}"></label>
+      <label>补仓份数 <input type="number" step="100" min="100" id="as-${code}" value="${pos.lots[0].shares}"></label>
+      <button class="pt-confirm" onclick="confirmAddLot('${code}')">确认补仓</button>
+      <button class="pt-cancel" onclick="togglePosForm('${code}','af-')">取消</button>
+    </div>
+    <div class="posform" id="pf-${code}" style="display:none">
+      <label>卖出日期 <input type="date" id="xd-${code}" value="${today}"></label>
+      <label>卖出价格 <input type="number" step="0.001" id="xp-${code}" value="${price.toFixed(3)}"></label>
+      <label>卖出份数 <input type="number" step="100" min="100" max="${pos.remaining_shares}" id="xs-${code}" value="${defaultShares}"></label>
+      <button class="pt-confirm" onclick="confirmSell('${code}')">确认卖出</button>
+      <button class="pt-cancel" onclick="togglePosForm('${code}','pf-')">取消</button>
+      <button class="pt-del" onclick="clearPosition('${code}')" title="删除该持仓记录(不计入复盘)">删除记录</button>
+    </div>`;
+  }else{
+    postrack=`<div class="postrack">
+      <div class="pt-info">未持仓</div>
+      <button class="pt-btn" onclick="togglePosForm('${code}','pf-')">📝 标记已入场</button>
+    </div>
+    <div class="posform" id="pf-${code}" style="display:none">
+      <label>入场日期 <input type="date" id="ed-${code}" value="${today}"></label>
+      <label>入场价格 <input type="number" step="0.001" id="ep-${code}" value="${price.toFixed(3)}"></label>
+      <label>买入份数 <input type="number" step="100" min="100" id="es-${code}" value="10000"></label>
+      <button class="pt-confirm" onclick="confirmEntry('${code}')">确认入场</button>
+      <button class="pt-cancel" onclick="togglePosForm('${code}','pf-')">取消</button>
+    </div>`;
+  }
+
+
+
+  let alertHtml='';
+  if(sig.alert_){const[c,m]=sig.alert_.split('|');alertHtml=`<div class="ast ${c}">${m}</div>`;}
+
+  // 近期信号回顾：未持仓且过去几天出现过未捕捉的入场信号（显示全部，不只最近一条）
+  let recentHtml='';
+  if(!holding&&recent&&recent.length>0&&!act.type.includes('建议入场')){
+    const items=recent.map(rs=>{
+      const chg=price>0&&rs.price>0?(price/rs.price-1)*100:0;
+      const chgC=chg>=0?'var(--green)':'var(--red)';
+      return `<div class="recent-row">
+        ⏰ <b>${rs.daysAgo}天前(${rs.date})</b>【建议入场·${rs.type}】via ${rs.via}
+        @${rs.price.toFixed(3)} 至今<b style="color:${chgC}">${chg>=0?'+':''}${chg.toFixed(2)}%</b>
+      </div>`;
+    }).join('');
+    recentHtml=`<div class="recent-alert">
+      ${items}
+      <div class="recent-note">若仍想入场可参考上述价位手动标记</div>
+    </div>`;
+  }
+
+  // 趋势强但未开启MA10二级触发：提示可关注，但不自动开启(详见对比回测)
+  let strongHint='';
+  if(!holding&&sig.trend_strong&&!etf.ma10_trigger){
+    strongHint=`<div class="strong-hint">
+      💡 当前ADX=${sig.adx}，趋势强劲。若想在回踩MA${etf.fast}时也获得入场提示，
+      可在 etf_fetch.py 中为 ${code} 添加 <code>'ma10_trigger': True</code>（注意：会增加回撤风险，详见对比回测）
+    </div>`;
+  }
+
+  let stopHtml='';
+  if(opts.stop&&price>0){
+    stopHtml=`<div class="stops">
+      <span class="sc atr">🛡 ATR移动止损 <b>${sig.atrs}</b>（-${sig.atrpct}%）</span>
+      <span class="sc fix">⊘ 固定止损 <b>${sig.fxs}</b>（-${(etf.fs*100).toFixed(0)}%）</span>
+    </div>`;}
+
+  let maHtml='';
+  if(opts.ma){
+    const fc=+sig.maf>+sig.mam?'var(--green)':'var(--red)';
+    const mc=+sig.mam>+sig.mas?'var(--green)':'var(--red)';
+    const fmt=v=>isNaN(+v)?v:(+v).toFixed(3);
+    maHtml=`<div class="marow">
+      <div class="mv2"><span class="mlb2">MA${etf.fast}</span><span style="color:${fc};font-weight:500">${fmt(sig.maf)}</span></div>
+      <span style="color:${fc};font-size:15px">${+sig.maf>+sig.mam?'›':'‹'}</span>
+      <div class="mv2"><span class="mlb2">MA${etf.mid}</span><span style="color:${mc};font-weight:500">${fmt(sig.mam)}</span></div>
+      <span style="color:${mc};font-size:15px">${+sig.mam>+sig.mas?'›':'‹'}</span>
+      <div class="mv2"><span class="mlb2">MA${etf.slow}</span><span>${fmt(sig.mas)}</span></div>
+      <span style="margin-left:10px;color:var(--text4)">斜率 <span style="color:${+sig.slope>=0?'var(--green)':'var(--red)'}">${+sig.slope>=0?'+':''}${sig.slope}%</span></span>
+    </div>`;}
+
+  return `<div class="card" id="card-${code}">
+    <div class="ctop">
+      <div><div class="cname">${etf.rt_name||etf.name}</div>
+           <div class="cmeta">${code} · ${etf.type} · 数据至 ${sig.date||'—'}${etf.ma10_trigger?' · <span style="color:var(--blue)">⚡MA10二级触发已启用</span>':''}</div></div>
+      <div class="pbox">
+        <div class="pnum">${price?price.toFixed(3):'—'}</div>
+        <div class="pchg" style="color:${chgC}">${price?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
+      </div>
+    </div>
+    <div class="sbar">
+      <div class="sdot" style="background:${act.dot}"></div>
+      <div class="slb" style="color:${act.color}">${act.type}</div>
+      ${sig.tbadge}
+      <div class="spos">建议仓位 <b>${Math.round(sig.pos_*100)}%</b></div>
+    </div>
+    ${postrack}
+    ${alertHtml}
+    ${recentHtml}
+    ${strongHint}
+    <div class="mets">
+      <div class="met"><div class="ml">ADX 趋势强度</div>
+        <div class="mv">${sig.adx}</div>
+        <div class="ms">${(+sig.adx<18)?'震荡 <18':(+sig.adx>=25)?'强劲 ≥25':'较弱 18-25'}</div></div>
+      <div class="met"><div class="ml">+DI / −DI</div>
+        <div class="mv" style="color:${+sig.pdi>+sig.mdi?'var(--green)':'var(--red)'}">${sig.pdi} / ${sig.mdi}</div>
+        <div class="ms">${+sig.pdi>+sig.mdi?'多方占优':'空方占优'}</div></div>
+      <div class="met"><div class="ml">ATR14 日波幅</div>
+        <div class="mv">${sig.atr14}</div>
+        <div class="ms">${price?(+sig.atr14/price*100).toFixed(2)+'%/日':'—'}</div></div>
+    </div>
+    ${stopHtml}${maHtml}
+  </div>`;
+}
+
+function renderAll(){
+  if(!etfData||!etfData.etfs){return;}
+  const entries=Object.entries(etfData.etfs).map(([code,etf])=>{
+    const ind=calcInd(etf.bars,etf.fast,etf.mid,etf.slow);
+    const sig=getSignal(ind,etf);
+    const pos=positions[code]||null;
+    const holding=!!pos;
+    const act=actualSignal(sig,pos);
+    const recent=!holding?recentEntrySignals(ind,4,etf.ma10_trigger):[];
+    return {code,etf,sig,holding,act,recent};
+  });
+
+  // 今日有"动作信号"的ETF：未持仓时为"建议入场"，持仓时为"建议减仓/建议清仓"，
+  // 以及与持仓状态相关的金叉/死叉提示（未持仓时金叉/回踩相关，持仓时死叉相关）
+  const actionable = entries.filter(({sig,holding,act,recent}) => {
+    if(act.type.includes('建议入场')) return true;
+    if(holding && act.sellShares>0) return true; // 建议减仓/建议清仓
+    if(holding && act.addSignal) return true; // 可考虑补仓
+    if(!holding && recent.length>0) return true; // 近期出现过未捕捉的入场信号
+    if(sig.alert_){
+      const isExitAlert = sig.alert_.startsWith('r|'); // 死叉
+      return holding ? isExitAlert : !isExitAlert;
+    }
+    return false;
+  });
+  const actionSet = new Set(actionable.map(e=>e.code));
+  // 持仓中但今天没有触发减仓/清仓信号的ETF：单独分组，排在"今日信号"之后
+  const holdingNoSignal = entries.filter(({code,holding}) => holding && !actionSet.has(code));
+  const holdingSet = new Set(holdingNoSignal.map(e=>e.code));
+  // 未持仓、趋势强(ADX>=25)、但未开启MA10二级触发的ETF：单独分组，提示可关注
+  const strongTrend = entries.filter(({code,holding,sig,etf}) =>
+    !holding && !actionSet.has(code) && !holdingSet.has(code) && sig.trend_strong && !etf.ma10_trigger);
+  const strongSet = new Set(strongTrend.map(e=>e.code));
+  const others = entries.filter(({code}) =>
+    !actionSet.has(code) && !holdingSet.has(code) && !strongSet.has(code));
+
+  // 排序：建议清仓 > 建议入场 > 建议减仓 > 其他提示，再按ADX降序
+  actionable.sort((a,b)=>{
+    const score=({act,holding,recent})=>act.type.includes('建议清仓')?4:act.type.includes('建议入场')?3
+      :act.addSignal?2.5:act.type.includes('建议减仓')?2:(!holding&&recent.length>0)?1:0;
+    const sa=score(a), sb=score(b);
+    if(sa!==sb) return sb-sa;
+    return (+b.sig.adx)-(+a.sig.adx);
+  });
+  // 持仓中的也按ADX降序，方便看趋势强弱
+  holdingNoSignal.sort((a,b)=>(+b.sig.adx)-(+a.sig.adx));
+  strongTrend.sort((a,b)=>(+b.sig.adx)-(+a.sig.adx));
+
+  // 顶部汇总区
+  let summaryHtml='';
+  if(actionable.length>0){
+    const items=actionable.map(({code,etf,act,holding,recent})=>{
+      let label,tagColor,tagBg;
+      if(!holding&&recent.length>0&&!act.type.includes('建议入场')){
+        label=`⏰近期信号(${recent[0].daysAgo}天前·${recent[0].type})`;
+        tagColor='var(--blue)'; tagBg='var(--blue-bg)';
+      }else if(act.addSignal){
+        label=act.type; tagColor='var(--blue)'; tagBg='var(--blue-bg)';
+      }else{
+        label=act.type; tagColor=act.color;
+        tagBg=act.type.includes('建议入场')?'var(--green-bg)':act.type.includes('建议清仓')?'var(--red-bg)':'var(--amber-bg)';
+      }
+      return `<a href="#card-${code}" class="sum-item" style="border-color:${tagColor}">
+        <span class="sum-name">${etf.rt_name||etf.name}</span>
+        <span class="sum-tag" style="background:${tagBg};color:${tagColor}">${label}</span>
+      </a>`;
+    }).join('');
+    summaryHtml=`<div class="today-summary">
+      <div class="ts-title">⚡ 今日信号汇总（${actionable.length}）</div>
+      <div class="ts-list">${items}</div>
+    </div>`;
+  } else {
+    summaryHtml=`<div class="today-summary empty-sum">
+      <div class="ts-title">今日无新增信号</div>
+      <div class="ts-sub">所有ETF维持原状态（持仓/空仓不变），可不操作</div>
+    </div>`;
+  }
+
+  // 分组标题：有信号的不加标题（已在汇总区强调），持仓中/其他分组前插入小标题
+  let cardsHtml='';
+  if(actionable.length>0){
+    cardsHtml+=actionable.map(({code,etf,sig,holding,act,recent})=>buildCard(code,etf,sig,holding,act,recent)).join('');
+  }
+  if(holdingNoSignal.length>0){
+    cardsHtml+=`<div class="group-title">📌 我的持仓（${holdingNoSignal.length}）</div>`;
+    cardsHtml+=holdingNoSignal.map(({code,etf,sig,holding,act,recent})=>buildCard(code,etf,sig,holding,act,recent)).join('');
+  }
+  if(strongTrend.length>0){
+    cardsHtml+=`<div class="group-title">🔥 趋势强·值得关注（${strongTrend.length}）</div>`;
+    cardsHtml+=strongTrend.map(({code,etf,sig,holding,act,recent})=>buildCard(code,etf,sig,holding,act,recent)).join('');
+  }
+  if(others.length>0){
+    if(actionable.length>0||holdingNoSignal.length>0||strongTrend.length>0){
+      cardsHtml+=`<div class="group-title">其他监测（${others.length}）</div>`;
+    }
+    cardsHtml+=others.map(({code,etf,sig,holding,act,recent})=>buildCard(code,etf,sig,holding,act,recent)).join('');
+  }
+
+  document.getElementById('summary').innerHTML=summaryHtml;
+  document.getElementById('cards').innerHTML=cardsHtml||'<div class="empty">—<h3>暂无数据</h3></div>';
+  renderReview();
+}
+
+function renderReview(){
+  const el=document.getElementById('review');
+  if(!el) return;
+
+  // 当前持仓
+  const openEntries=Object.entries(positions);
+  let openHtml;
+  if(openEntries.length>0){
+    const rows=openEntries.map(([code,p])=>{
+      const etf=etfData&&etfData.etfs?etfData.etfs[code]:null;
+      const price=etf?(etf.price||0):0;
+      const ret=price>0?unrealizedReturn(p,price)*100:0;
+      const total=totalShares(p);
+      const avgP=avgEntryPrice(p);
+      const firstDate=p.lots[0].date;
+      const days=Math.max(0,Math.round((Date.now()-new Date(firstDate))/86400000));
+      const c=ret>=0?'var(--green)':'var(--red)';
+      const name=etf?(etf.rt_name||etf.name):code;
+      const soldN=(p.sells||[]).length;
+      const lotN=p.lots.length;
+      let entryDisp;
+      if(lotN===1) entryDisp=`${p.lots[0].price}`;
+      else entryDisp=`均价${avgP.toFixed(3)}<div style="font-size:11px;color:var(--text3)">分${lotN}笔建仓</div>`;
+      const soldNote=soldN>0?`<div style="font-size:11px;color:var(--text3)">已减仓${soldN}次</div>`:'';
+      return `<tr><td><a href="#card-${code}">${name}</a></td><td>${firstDate}</td><td>${entryDisp}</td>
+        <td>${price?price.toFixed(3):'—'}</td><td>${days}天</td>
+        <td><b>${p.remaining_shares}</b>/${total}份${soldNote}</td>
+        <td style="color:${c}">${ret>=0?'+':''}${ret.toFixed(2)}%</td></tr>`;
+    }).join('');
+    openHtml=`<table class="rv-table"><thead><tr><th>ETF</th><th>首次入场</th><th>成本价</th>
+      <th>现价</th><th>持仓天数</th><th>剩余份数</th><th>浮盈(扣入场费)</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    openHtml='<div class="rv-empty">当前无持仓</div>';
+  }
+
+  // 历史成交（按"总份数占比"加权计算总收益，支持多笔建仓+分次卖出）
+  let histHtml;
+  if(history.length>0){
+    const wins=history.filter(h=>h.ret>0).length;
+    const winRate=(wins/history.length*100).toFixed(0);
+    const avgRet=(history.reduce((s,h)=>s+h.ret,0)/history.length*100).toFixed(2);
+    const totalPnl=history.reduce((s,h)=>{
+      const cost=h.lots.reduce((s2,l)=>s2+l.price*l.shares+l.fee,0);
+      return s+cost*h.ret;
+    },0);
+    const pnlC=totalPnl>=0?'var(--green)':'var(--red)';
+    const rows=history.map((h,i)=>{
+      const c=h.ret>=0?'var(--green)':'var(--red)';
+      const total=h.lots.reduce((s,l)=>s+l.shares,0);
+      const lotDesc=h.lots.length>1
+        ?h.lots.map(l=>`${l.date}@${l.price}×${l.shares}`).join('<br>')
+        :`${h.lots[0].price} × ${h.lots[0].shares}份`;
+      const sellDesc=(h.sells||[]).map(s=>`${s.date}@${s.price}×${s.shares}份`).join('<br>');
+      const buyDetail=h.lots.length>1?`<div style="font-size:11px;color:var(--text3)">买入(分${h.lots.length}笔): ${lotDesc}</div>`:'';
+      const sellDetail=h.n_sells>1
+        ?`<div style="font-size:11px;color:var(--text3)">卖出(分${h.n_sells}次): ${sellDesc}</div>`
+        :`<div style="font-size:11px;color:var(--text3)">卖出: ${sellDesc}</div>`;
+      return `<tr><td>${h.name}</td><td>${h.lots[0].date} → ${h.exit_date}</td>
+        <td>${h.lots.length===1?h.lots[0].price:'均价'+(h.lots.reduce((s,l)=>s+l.price*l.shares,0)/total).toFixed(3)} × ${total}份${buyDetail}${sellDetail}</td>
+        <td>${h.days}天</td>
+        <td style="color:${c}">${h.ret>=0?'+':''}${(h.ret*100).toFixed(2)}%</td>
+        <td>
+          <button class="rv-undo" onclick="undoClose(${i})" title="撤销清仓，恢复为持仓中">撤销清仓</button>
+          <button class="rv-del" onclick="deleteTrade(${i})">删除</button>
+        </td></tr>`;
+    }).join('');
+    histHtml=`<div class="rv-stats">共 <b>${history.length}</b> 笔 · 胜率 <b>${winRate}%</b> · 平均收益
+      <b style="color:${avgRet>=0?'var(--green)':'var(--red)'}">${avgRet>=0?'+':''}${avgRet}%</b>
+      · 累计盈亏 <b style="color:${pnlC}">${totalPnl>=0?'+':''}${totalPnl.toFixed(0)}元</b></div>
+      <table class="rv-table"><thead><tr><th>ETF</th><th>首次入场→最后卖出</th><th>明细</th>
+      <th>持仓</th><th>加权收益</th><th></th></tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    histHtml='<div class="rv-empty">暂无历史成交记录</div>';
+  }
+
+  el.innerHTML=`<div class="review-section">
+    <h3>📒 当前持仓</h3>${openHtml}
+    <h3 style="margin-top:14px">📊 交易复盘</h3>${histHtml}
+  </div>`;
+}
+function exportPositions(){
+  if(!etfData||!etfData.etfs){alert('请先刷新信号');return;}
+  const out={};
+  for(const [code,pos] of Object.entries(positions)){
+    const etf=etfData.etfs[code];
+    if(!etf) continue;
+    const ind=calcInd(etf.bars,etf.fast,etf.mid,etf.slow);
+    const sig=getSignal(ind,etf);
+    out[code]={
+      name: etf.rt_name||etf.name,
+      lots: pos.lots,
+      remaining_shares: pos.remaining_shares,
+      sells: pos.sells||[],
+      atr_stop: sig.atr_stop||null,
+      fix_stop: sig.fix_stop||null,
+    };
+  }
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='positions.json';
+  a.click();
+  URL.revokeObjectURL(a.href);
+  const n=Object.keys(out).length;
+  alert(n>0?`已导出 ${n} 只持仓到 positions.json\n放到和 etf_alert.py 相同的文件夹`:'当前无持仓记录，无需导出');
+}
+
+function tgl(k){opts[k]=!opts[k];document.getElementById('t-'+k).classList.toggle('on',opts[k]);renderAll();}
+
+// 自动加载
+loadData();
+</script>
+</body>
+</html>
