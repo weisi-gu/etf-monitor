@@ -227,8 +227,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 <div class="panel">
   <div class="slbl">显示设置</div>
   <div class="toggles">
-    <label class="ti_"><button class="tog" id="t-stop" onclick="tgl('stop')"></button>止损价位</label>
-    <label class="ti_"><button class="tog" id="t-ma"   onclick="tgl('ma')"></button>均线数值</label>
+    <label class="ti_"><button class="tog on" id="t-stop" onclick="tgl('stop')"></button>止损价位</label>
+    <label class="ti_"><button class="tog on" id="t-ma"   onclick="tgl('ma')"></button>均线数值</label>
     
   </div>
 </div>
@@ -251,7 +251,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'PingFang SC','Microsoft YaHei
 </div>
 
 <script>
-let opts={stop:false,ma:false}, etfData=null;
+let opts={stop:true,ma:true}, etfData=null;
 let positions=loadPositions(), history=loadHistory();
 
 // 交易成本：双边各按 万1.2，单笔最低5元
