@@ -457,7 +457,7 @@ async function loadData(){
   const icon=document.getElementById('reficon');
   btn.disabled=true; icon.textContent='⟳';
   try{
-    // 从 GitHub Gist 读取数据（手机版，无需本地服务器）
+    // 从 GitHub Gist 读取ETF数据（手机版，无需本地服务器）
     const GIST_RAW='https://gist.githubusercontent.com/weisi-gu/5eb0552f9c2ebe46889e4978add15069/raw/etf_data.json';
     const url=GIST_RAW+'?t='+Date.now();
     let r;
@@ -468,6 +468,23 @@ async function loadData(){
     }
     if(!r.ok) throw new Error('数据加载失败 '+r.status+' — 请确认电脑已运行 etf_fetch.py 并成功同步到 Gist');
     etfData=await r.json();
+
+    // 从 Gist 读取持仓数据（电脑版导出持仓时自动同步过来）
+    try{
+      const posUrl='https://gist.githubusercontent.com/weisi-gu/5eb0552f9c2ebe46889e4978add15069/raw/positions.json?t='+Date.now();
+      const posR=await fetch(posUrl);
+      if(posR.ok){
+        const gistPos=await posR.json();
+        // 把Gist持仓数据注入positions（只注入有持仓的条目）
+        for(const [code,pos] of Object.entries(gistPos)){
+          positions[code]=pos;
+        }
+        console.log('持仓数据已从Gist加载: '+Object.keys(gistPos).length+'只');
+      }
+    }catch(posErr){
+      console.log('持仓数据未找到（首次使用或暂无持仓）:', posErr.message);
+    }
+
     renderAll();
     const tag=document.getElementById('data-tag');
     tag.textContent='数据：'+etfData.update_time;
