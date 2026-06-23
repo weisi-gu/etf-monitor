@@ -614,7 +614,8 @@ function buildCard(code,etf,sig,holding,act,recent){
     const firstDate=pos.lots[0].date;
     const days=Math.max(0,Math.round((Date.now()-new Date(firstDate))/86400000));
     const retC=retPct>=0?'var(--green)':'var(--red)';
-    const remainPct=Math.round(pos.remaining_shares/total*100);
+    const fullBase = pos.full_shares || total;
+    const remainPct=Math.round(pos.remaining_shares/fullBase*100);
     const mktVal=price*pos.remaining_shares;
     const entryCostShare=totalCost(pos)*(pos.remaining_shares/total); // 剩余份数分摊的含(入场)费成本
     const pnlYuan=price*pos.remaining_shares - entryCostShare;
@@ -715,9 +716,9 @@ function buildCard(code,etf,sig,holding,act,recent){
     </div>`;
   }
 
-  // 趋势强但未开启MA10二级触发：提示可关注，但不自动开启(详见对比回测)
+  // 趋势强但未开启MA10二级触发：仅高弹性标的显示提示（宽基稳定不推荐开启）
   let strongHint='';
-  if(!holding&&sig.trend_strong&&!etf.ma10_trigger){
+  if(!holding&&sig.trend_strong&&!etf.ma10_trigger&&etf.type==='高弹性'){
     strongHint=`<div class="strong-hint">
       💡 当前ADX=${sig.adx}，趋势强劲。若想在回踩MA${etf.fast}时也获得入场提示，
       可在 etf_fetch.py 中为 ${code} 添加 <code>'ma10_trigger': True</code>（注意：会增加回撤风险，详见对比回测）
