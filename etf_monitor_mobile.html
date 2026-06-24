@@ -583,9 +583,10 @@ function getSignal(ind,cfg){
   else if(exit_){type='建议出场';color='var(--red)';pos_=0;dot='var(--red)';}
   else{type='空仓观望';color='var(--text3)';pos_=0;dot='var(--text4)';}
   let alert_='';
-  if(cxup)   alert_=`g|⚡ 金叉 — MA${cfg.fast} 上穿 MA${cfg.mid}`;
-  else if(cxdn) alert_=`r|⚡ 死叉 — MA${cfg.fast} 下穿 MA${cfg.mid}`;
-  else if(bnce&&(ts||tw))  alert_=`a|📍 回踩均线区间 — 观察收盘能否站稳`;
+  if(cxup&&(ts||tw))   alert_=`g|⚡ 金叉 — MA${cfg.fast} 上穿 MA${cfg.mid}`;
+  else if(cxdn) alert_=`r|⚡ 死叉 — MA${cfg.fast} 下穿 MA${cfg.mid}${holding?' ⚠️ 持仓中，注意出场条件':''}`;
+  else if(bnce&&(ts||tw)&&r.pdi>r.mdi)  alert_=`a|📍 回踩均线区间 — 观察收盘能否站稳`;
+  else if(bnce&&(ts||tw)&&r.pdi<=r.mdi) alert_=`r|📍 回踩均线区间 — 空方占优，大概率反弹非启动`;
   else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast}（强趋势二级触发）— 观察收盘能否站稳`;
   const tbadge=ts?`<span class="tbg" style="background:var(--green-bg);color:var(--green)">趋势强</span>`
     :tw?`<span class="tbg" style="background:var(--amber-bg);color:var(--amber)">趋势偏弱</span>`
@@ -705,9 +706,12 @@ function buildCard(code,etf,sig,holding,act,recent){
     const items=recent.map(rs=>{
       const chg=price>0&&rs.price>0?(price/rs.price-1)*100:0;
       const chgC=chg>=0?'var(--green)':'var(--red)';
-      return `<div class="recent-row">
+      const stale=chg>5;
+      const staleStyle=stale?'opacity:0.5;text-decoration:line-through':'';
+      const staleTag=stale?` <span style="color:var(--text3);font-size:11px">⚠️已过窗口(+${chg.toFixed(1)}%)</span>`:'';
+      return `<div class="recent-row" style="${staleStyle}">
         ⏰ <b>${rs.daysAgo}天前(${rs.date})</b>【建议入场·${rs.type}】via ${rs.via}
-        @${rs.price.toFixed(3)} 至今<b style="color:${chgC}">${chg>=0?'+':''}${chg.toFixed(2)}%</b>
+        @${rs.price.toFixed(3)} 至今<b style="color:${chgC}">${chg>=0?'+':''}${chg.toFixed(2)}%</b>${staleTag}
       </div>`;
     }).join('');
     recentHtml=`<div class="recent-alert">
@@ -771,7 +775,7 @@ function buildCard(code,etf,sig,holding,act,recent){
         <div class="ms">${(+sig.adx<18)?'震荡 <18':(+sig.adx>=25)?'强劲 ≥25':'较弱 18-25'}</div></div>
       <div class="met"><div class="ml">+DI / −DI</div>
         <div class="mv" style="color:${+sig.pdi>+sig.mdi?'var(--green)':'var(--red)'}">${sig.pdi} / ${sig.mdi}</div>
-        <div class="ms">${+sig.pdi>+sig.mdi?'多方占优':'空方占优'}</div></div>
+        <div class="ms" style="color:${+sig.pdi>+sig.mdi?'var(--green)':'var(--red);font-weight:500'}">${+sig.pdi>+sig.mdi?'多方占优':'⚠ 空方占优'}</div></div>
       <div class="met"><div class="ml">ATR14 日波幅</div>
         <div class="mv">${sig.atr14}</div>
         <div class="ms">${price?(+sig.atr14/price*100).toFixed(2)+'%/日':'—'}</div></div>
