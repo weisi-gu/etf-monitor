@@ -318,11 +318,11 @@ function unrealizedReturn(pos, price){
 function actualSignal(sig, pos){
   if(pos){
     const total=totalShares(pos);
-    const remain=pos.remaining_shares/total, target=sig.pos_;
+    const fullBase = pos.full_shares || total;
+    const remain=pos.remaining_shares/fullBase, target=sig.pos_;
     if(target < remain - 0.001){
-      const sellShares=round100((remain-target)*total, pos.remaining_shares);
+      const sellShares=round100((remain-target)*fullBase, pos.remaining_shares);
       if(target<=0){
-        // 区分原因：down=趋势/止损真正走坏(必须执行)；chop=ADX强度不足(建议观望，非强制)
         const reasonTag = sig.zeroReason==='chop' ? '（震荡观望，非止损）' : '（趋势走坏）';
         const reasonColor = sig.zeroReason==='chop' ? 'var(--amber)' : 'var(--red)';
         return {type:`建议清仓${reasonTag}`,color:reasonColor,dot:reasonColor,sellShares:pos.remaining_shares,toFrac:0,addSignal:false,zeroReason:sig.zeroReason};
@@ -330,7 +330,7 @@ function actualSignal(sig, pos){
       return {type:`建议减仓至${Math.round(target*100)}%`,color:'var(--amber)',dot:'var(--amber)',sellShares,toFrac:target,addSignal:false};
     }
     if(sig.entry && target>=remain-0.001){
-      return {type:'可考虑补仓',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true};
+      return {type:'持仓中（出现加仓信号）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true};
     }
     if(sig.trend_strong) return {type:'持仓中（趋势强）',color:'var(--green)',dot:'var(--green)',sellShares:0,addSignal:false};
     if(sig.trend_weak)   return {type:'持仓中（趋势偏弱）',color:'var(--amber)',dot:'var(--amber)',sellShares:0,addSignal:false};
