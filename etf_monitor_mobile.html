@@ -597,12 +597,15 @@ function getSignal(ind,cfg){
   const tbadge=ts?`<span class="tbg" style="background:var(--green-bg);color:var(--green)">趋势强</span>`
     :tw?`<span class="tbg" style="background:var(--amber-bg);color:var(--amber)">趋势偏弱</span>`
     :`<span class="tbg" style="background:var(--bg3);color:var(--text3)">无趋势</span>`;
+  const adx5ago=ind.length>=6?ind[ind.length-6].adx:null;
+  const adxDelta=adx5ago!=null?(r.adx-adx5ago):null;
   return{type,color,pos_,dot,alert_,tbadge,zeroReason,
     atrs:atrs.toFixed(3),fxs:fxs.toFixed(3),atrpct:((1-atrs/(r.close||1))*100).toFixed(1),
     maf:r.maf.toFixed(3),mam:r.mam.toFixed(3),mas:r.mas.toFixed(3),
     adx:r.adx.toFixed(1),pdi:r.pdi.toFixed(1),mdi:r.mdi.toFixed(1),
+    adxDelta:adxDelta!=null?adxDelta.toFixed(1):null,
     slope:sl.toFixed(2),date:r.date,atr14:r.atr14.toFixed(4),close:r.close,
-    trend_strong:ts,trend_weak:tw,chop,entry,atr_stop:atrs,fix_stop:fxs,maf:r.maf.toFixed(3),mam:r.mam.toFixed(3)};
+    trend_strong:ts,trend_weak:tw,chop,entry,atr_stop:atrs,fix_stop:fxs};
 }
 
 function buildCard(code,etf,sig,holding,act,recent){
@@ -784,7 +787,7 @@ function buildCard(code,etf,sig,holding,act,recent){
     <div class="mets">
       <div class="met"><div class="ml">ADX 趋势强度</div>
         <div class="mv">${sig.adx}</div>
-        <div class="ms">${(+sig.adx<18)?'震荡 <18':(+sig.adx>=25)?'强劲 ≥25':'较弱 18-25'}</div></div>
+        <div class="ms">${(+sig.adx<18)?'震荡 <18':(+sig.adx>=25)?'强劲 ≥25':'较弱 18-25'}${sig.adxDelta!=null?`<span style="font-size:10px;color:var(--text4);margin-left:5px">5日${+sig.adxDelta>=0?'↑+':'↓'}${sig.adxDelta}</span>`:''}</div></div>
       <div class="met"><div class="ml">+DI / −DI</div>
         <div class="mv" style="color:${+sig.pdi>+sig.mdi?'var(--green)':'var(--red)'}">${sig.pdi} / ${sig.mdi}</div>
         <div class="ms" style="color:${+sig.pdi>+sig.mdi?'var(--green)':'var(--red);font-weight:500'}">${+sig.pdi>+sig.mdi?'多方占优':'⚠ 空方占优'}</div></div>
