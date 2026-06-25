@@ -332,6 +332,10 @@ function actualSignal(sig, pos){
     if(sig.entry && target>=remain-0.001){
       return {type:'持仓中（出现加仓信号）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true};
     }
+    // ADX升级补仓：半仓持仓中 + ADX刚升破25 → 提示补仓至全仓
+    if(sig.trend_strong && remain < 0.99){
+      return {type:'持仓中（ADX升级 → 建议补仓至全仓）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:false,adxUpgrade:true};
+    }
     if(sig.trend_strong) return {type:'持仓中（趋势强）',color:'var(--green)',dot:'var(--green)',sellShares:0,addSignal:false};
     if(sig.trend_weak)   return {type:'持仓中（趋势偏弱）',color:'var(--amber)',dot:'var(--amber)',sellShares:0,addSignal:false};
     return {type:'持仓中',color:'var(--green)',dot:'var(--green)',sellShares:0,addSignal:false};
@@ -647,6 +651,12 @@ function buildCard(code,etf,sig,holding,act,recent){
       actionHtml=`<div class="pt-action ${act.toFrac<=0?'pt-exit':'pt-reduce'}">
         🔔 ${act.type} — 建议卖出 <b>${act.sellShares}份</b>（约${(act.sellShares*price).toFixed(0)}元，剩余持仓的${Math.round(act.sellShares/pos.remaining_shares*100)}%）
       </div>`;
+    }else if(act.adxUpgrade){
+      const upgradeShares=Math.max(0,Math.round(fullBase-pos.remaining_shares));
+      const upgradeAmt=(upgradeShares*price).toFixed(0);
+      actionHtml=`<div class="pt-action pt-add">
+        ⚡ ADX升破25，趋势由偏弱转强劲 — 建议补仓至全仓（约需补入 <b>${upgradeShares}份</b>，约${upgradeAmt}元）
+      </div>`;
     }else if(act.addSignal){
       actionHtml=`<div class="pt-action pt-add">
         🔔 ${act.type} — 今日出现回踩快线信号(MA10二级触发)，趋势仍强，若想加大仓位可点击"补仓"
@@ -802,6 +812,7 @@ function renderAll(){
     if(act.type.includes('建议入场')) return true;
     if(holding && act.sellShares>0) return true; // 建议减仓/建议清仓
     if(holding && act.addSignal) return true; // 可考虑补仓
+    if(holding && act.adxUpgrade) return true; // ADX升级补仓
     if(!holding && recent.length>0) return true; // 近期出现过未捕捉的入场信号
     if(sig.alert_){
       const isExitAlert = sig.alert_.startsWith('r|'); // 死叉
@@ -820,10 +831,10 @@ function renderAll(){
   const others = entries.filter(({code}) =>
     !actionSet.has(code) && !holdingSet.has(code) && !strongSet.has(code));
 
-  // 排序：建议清仓 > 建议入场 > 建议减仓 > 其他提示，再按ADX降序
+  // 排序：建议清仓 > 建议入场 > ADX升级补仓 > 建议减仓 > 其他提示，再按ADX降序
   actionable.sort((a,b)=>{
     const score=({act,holding,recent})=>act.type.includes('建议清仓')?4:act.type.includes('建议入场')?3
-      :act.addSignal?2.5:act.type.includes('建议减仓')?2:(!holding&&recent.length>0)?1:0;
+      :act.adxUpgrade?2.8:act.addSignal?2.5:act.type.includes('建议减仓')?2:(!holding&&recent.length>0)?1:0;
     const sa=score(a), sb=score(b);
     if(sa!==sb) return sb-sa;
     return (+b.sig.adx)-(+a.sig.adx);
@@ -840,6 +851,8 @@ function renderAll(){
       if(!holding&&recent.length>0&&!act.type.includes('建议入场')){
         label=`⏰近期信号(${recent[0].daysAgo}天前·${recent[0].type})`;
         tagColor='var(--blue)'; tagBg='var(--blue-bg)';
+      }else if(act.adxUpgrade){
+        label='⚡ADX升级→补仓'; tagColor='var(--blue)'; tagBg='var(--blue-bg)';
       }else if(act.addSignal){
         label=act.type; tagColor='var(--blue)'; tagBg='var(--blue-bg)';
       }else{
