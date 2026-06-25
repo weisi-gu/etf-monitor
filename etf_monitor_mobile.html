@@ -649,7 +649,7 @@ function buildCard(code,etf,sig,holding,act,recent){
     let actionHtml='';
     if(act.sellShares>0){
       actionHtml=`<div class="pt-action ${act.toFrac<=0?'pt-exit':'pt-reduce'}">
-        🔔 ${act.type} — 建议卖出 <b>${act.sellShares}份</b>（约${(act.sellShares*price).toFixed(0)}元，剩余持仓的${Math.round(act.sellShares/pos.remaining_shares*100)}%）
+        🔔 ${act.type} — 建议卖出 <b>${act.sellShares}份</b>（约${(act.sellShares*price).toFixed(0)}元，卖后剩余${Math.round((pos.remaining_shares-act.sellShares)/fullBase*100)}%仓位）
       </div>`;
     }else if(act.adxUpgrade){
       const upgradeShares=Math.max(0,Math.round(fullBase-pos.remaining_shares));
