@@ -364,7 +364,7 @@ function confirmEntry(code){
   const sh=parseInt(document.getElementById('es-'+code).value);
   if(!d||!p||p<=0||!sh||sh<=0){alert('请输入有效的入场日期、价格和份数');return;}
   const fee=calcFee(p*sh);
-  positions[code]={lots:[{date:d,price:p,shares:sh,fee}],remaining_shares:sh,sells:[]};
+  positions[code]={lots:[{date:d,price:p,shares:sh,fee}],remaining_shares:sh,full_shares:sh,sells:[]};
   savePositions(); renderAll();
 }
 
@@ -481,6 +481,8 @@ async function loadData(){
         const gistPos=await posR.json();
         // 把Gist持仓数据注入positions（只注入有持仓的条目）
         for(const [code,pos] of Object.entries(gistPos)){
+          // 兜底：旧数据若缺 full_shares，用 totalShares(lot之和) 补全
+          if(!pos.full_shares) pos.full_shares = pos.lots.reduce((s,l)=>s+l.shares,0);
           positions[code]=pos;
         }
         console.log('持仓数据已从Gist加载: '+Object.keys(gistPos).length+'只');
