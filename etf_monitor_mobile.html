@@ -560,12 +560,13 @@ function entryAt(ind,i,ma10Trigger){
   const chop=r.adx<18;
   const cxup=p.maf<=p.mam&&r.maf>r.mam, bnce=r.low<=r.mam*1.015&&r.mam*0.99<=r.close&&r.close<=r.mam*1.02;
   let bfast=false, viaFast=false;
-  if(ma10Trigger&&ts){
+  const ma10Active=ma10Trigger&&ts&&r.adx>=30;  // 动态：ADX≥30才激活
+  if(ma10Active){
     bfast=r.low<=r.maf*1.015&&r.maf*0.99<=r.close&&r.close<=r.maf*1.02;
     viaFast=bfast;
   }
   const entry=(cxup||bnce||bfast)&&(ts||tw)&&!chop;
-  return{entry,ts,tw,chop,cxup,bnce,bfast,date:r.date,close:r.close};
+  return{entry,ts,tw,chop,cxup,bnce,bfast,ma10Active,date:r.date,close:r.close};
 }
 
 // 回顾最近几个交易日(不含今天)是否出现过未被捕捉的入场信号
@@ -586,7 +587,7 @@ function getSignal(ind,cfg){
   const r=ind[ind.length-1],p=ind[ind.length-2];
   const sl=r.slope||0;
   const e=entryAt(ind,ind.length-1,cfg.ma10_trigger);
-  const{ts,tw,chop,entry,cxup,bnce,bfast}=e;
+  const{ts,tw,chop,entry,cxup,bnce,bfast,ma10Active}=e;
   const down=r.maf<r.mam||r.close<r.mas;
   const cxdn=p.maf>=p.mam&&r.maf<r.mam, brk=r.close<r.mas;
   const exit_=cxdn||brk;
@@ -604,11 +605,11 @@ function getSignal(ind,cfg){
   else if(exit_){type='建议出场';color='var(--red)';pos_=0;dot='var(--red)';}
   else{type='空仓观望';color='var(--text3)';pos_=0;dot='var(--text4)';}
   let alert_='';
-  if(cxup&&(ts||tw))   alert_=`g|⚡ 金叉 — MA${cfg.fast} 上穿 MA${cfg.mid}`;
-  else if(cxdn) alert_=`r|⚡ 死叉 — MA${cfg.fast} 下穿 MA${cfg.mid}${holding?' ⚠️ 持仓中，注意出场条件':''}`;
-  else if(bnce&&(ts||tw)&&r.pdi>r.mdi)  alert_=`a|📍 回踩中轨MA${cfg.mid}（${r.mam.toFixed(3)}）— 收盘需收阳且不低于MA${cfg.mid}，方视为站稳`;
-  else if(bnce&&(ts||tw)&&r.pdi<=r.mdi) alert_=`r|📍 回踩中轨MA${cfg.mid}（${r.mam.toFixed(3)}）— 空方占优，注意收盘是否跌破MA${cfg.mid}`;
-  else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast}（${r.maf.toFixed(3)}）— 收盘需收阳且不低于MA${cfg.fast}，方视为站稳`;
+  if(cxup&&(ts||tw))   alert_=`g|⚡ 金叉: MA${cfg.fast} 上穿 MA${cfg.mid}`;
+  else if(cxdn) alert_=`r|⚡ 死叉: MA${cfg.fast} 下穿 MA${cfg.mid}${holding?' ⚠️ 持仓中，注意出场条件':''}`;
+  else if(bnce&&(ts||tw)&&r.pdi>r.mdi)  alert_=`a|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}): 收盘需收阳且不低于MA${cfg.mid}，方视为站稳`;
+  else if(bnce&&(ts||tw)&&r.pdi<=r.mdi) alert_=`r|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}): 空方占优，注意收盘是否跌破MA${cfg.mid}`;
+  else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast} (${r.maf.toFixed(3)}): 收盘需收阳且不低于MA${cfg.fast}，方视为站稳`;
   const tbadge=ts?`<span class="tbg" style="background:var(--green-bg);color:var(--green)">趋势强</span>`
     :tw?`<span class="tbg" style="background:var(--amber-bg);color:var(--amber)">趋势偏弱</span>`
     :`<span class="tbg" style="background:var(--bg3);color:var(--text3)">无趋势</span>`;
@@ -622,7 +623,8 @@ function getSignal(ind,cfg){
     adxDelta:adxDelta!=null?adxDelta.toFixed(1):null,
     prevAdx:prevAdx!=null?prevAdx:null,
     slope:sl.toFixed(2),date:r.date,atr14:r.atr14.toFixed(4),close:r.close,
-    trend_strong:ts,trend_weak:tw,chop,entry,atr_stop:atrs,fix_stop:fxs};
+    trend_strong:ts,trend_weak:tw,chop,entry,atr_stop:atrs,fix_stop:fxs,
+    ma10_trigger:!!ma10Active};  // 动态：静态开关+ADX≥30才为true
 }
 
 function buildCard(code,etf,sig,holding,act,recent){
@@ -792,7 +794,7 @@ function buildCard(code,etf,sig,holding,act,recent){
   return `<div class="card" id="card-${code}">
     <div class="ctop">
       <div><div class="cname">${etf.rt_name||etf.name}</div>
-           <div class="cmeta">${code} · ${etf.type} · 数据至 ${sig.date||'—'}${etf.ma10_trigger?' · <span style="color:var(--blue)">⚡MA10二级触发已启用</span>':''}</div></div>
+           <div class="cmeta">${code} · ${etf.type} · 数据至 ${sig.date||'—'}${etf.ma10_trigger?(sig.ma10_trigger?' · <span style="color:var(--blue)">⚡MA10二级触发已启用 (ADX≥30)</span>':' · <span style="color:var(--text3)">⚡MA10待激活 (ADX<30)</span>'):''}</div></div>
       <div class="pbox">
         <div class="pnum">${price?price.toFixed(3):'—'}</div>
         <div class="pchg" style="color:${chgC}">${price?(chg>=0?'+':'')+chg.toFixed(2)+'%':''}</div>
