@@ -315,19 +315,32 @@ function unrealizedReturn(pos, price){
 // pos: positions[code] 或 null。"全仓"=全部建仓份数之和(每次补仓会重新定义100%基准)
 // 信号给出的目标仓位(sig.pos_: 0/0.5/1) 低于当前剩余比例时 → 提示减仓/清仓
 // 若已持仓且今天出现新的入场触发(如MA10二级触发回踩) → 提示"可考虑补仓"
-function actualSignal(sig, pos){
+function actualSignal(sig, pos, etf){
   if(pos){
     const total=totalShares(pos);
     const fullBase = pos.full_shares || total;
     const remain=pos.remaining_shares/fullBase, target=sig.pos_;
+    const firstDate=pos.lots[0].date;
+    const holdDays=Math.max(0,Math.round((Date.now()-new Date(firstDate))/86400000));
+    const minHold=(etf&&etf.type==='宽基稳定')?20:15;
+    const canExit=holdDays>=minHold;
     if(target < remain - 0.001){
       const sellShares=round100((remain-target)*fullBase, pos.remaining_shares);
       if(target<=0){
         const reasonTag = sig.zeroReason==='chop' ? '（震荡观望，非止损）' : '（趋势走坏）';
-        const reasonColor = sig.zeroReason==='chop' ? 'var(--amber)' : 'var(--red)';
-        return {type:`建议清仓${reasonTag}`,color:reasonColor,dot:reasonColor,sellShares:pos.remaining_shares,toFrac:0,addSignal:false,zeroReason:sig.zeroReason};
+        if(canExit){
+          const reasonColor = sig.zeroReason==='chop' ? 'var(--amber)' : 'var(--red)';
+          return {type:`建议清仓${reasonTag}`,color:reasonColor,dot:reasonColor,
+                  sellShares:pos.remaining_shares,toFrac:0,addSignal:false,
+                  zeroReason:sig.zeroReason,canExit:true};
+        } else {
+          const daysLeft=minHold-holdDays;
+          return {type:`出场信号${reasonTag}（未满最短持仓）`,color:'var(--amber)',dot:'var(--amber)',
+                  sellShares:0,toFrac:remain,addSignal:false,
+                  zeroReason:sig.zeroReason,canExit:false,daysLeft,minHold};
+        }
       }
-      return {type:`建议减仓至${Math.round(target*100)}%`,color:'var(--amber)',dot:'var(--amber)',sellShares,toFrac:target,addSignal:false};
+      return {type:`建议减仓至${Math.round(target*100)}%`,color:'var(--amber)',dot:'var(--amber)',sellShares,toFrac:target,addSignal:false,canExit:true};
     }
     if(sig.entry && target>=remain-0.001){
       return {type:'持仓中（出现加仓信号）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true};
@@ -652,7 +665,11 @@ function buildCard(code,etf,sig,holding,act,recent){
     }
 
     let actionHtml='';
-    if(act.sellShares>0){
+    if(!act.canExit && act.daysLeft>0){
+      actionHtml=`<div class="pt-action pt-reduce">
+        ⚠️ ${act.type} — 均线出场信号已触发，但尚未满最短持仓（还差 <b>${act.daysLeft}天</b>，共需${act.minHold}天）。<b>止损不受此限制</b>，请继续盯紧止损线。
+      </div>`;
+    }else if(act.sellShares>0){
       actionHtml=`<div class="pt-action ${act.toFrac<=0?'pt-exit':'pt-reduce'}">
         🔔 ${act.type} — 建议卖出 <b>${act.sellShares}份</b>（约${(act.sellShares*price).toFixed(0)}元，卖后剩余${Math.round((pos.remaining_shares-act.sellShares)/fullBase*100)}%仓位）
       </div>`;
@@ -806,7 +823,7 @@ function renderAll(){
     const sig=getSignal(ind,etf);
     const pos=positions[code]||null;
     const holding=!!pos;
-    const act=actualSignal(sig,pos);
+    const act=actualSignal(sig,pos,etf);
     const recent=!holding?recentEntrySignals(ind,4,etf.ma10_trigger):[];
     return {code,etf,sig,holding,act,recent};
   });
