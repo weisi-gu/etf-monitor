@@ -627,7 +627,7 @@ function getSignal(ind,cfg){
 
 function buildCard(code,etf,sig,holding,act,recent){
   const price=etf.price||0, chg=etf.chg||0;
-  const chgC=chg>=0?'var(--green)':'var(--red)';
+  const chgC=chg>=0?'var(--red)':'var(--green)';  // A股惯例：红涨绿跌
   const today=new Date().toISOString().slice(0,10);
 
   // 持仓操作区：标记入场(份数) / 显示建仓明细+剩余份数+浮盈+补仓/减仓/清仓
@@ -653,8 +653,8 @@ function buildCard(code,etf,sig,holding,act,recent){
     if(pos.lots.length===1){
       entryDesc=`入场 ${pos.lots[0].price} × ${pos.lots[0].shares}份 · ${pos.lots[0].date}`;
     }else{
-      const lotDesc=pos.lots.map(l=>`${l.price}×${l.shares}份(${l.date})`).join(' + ');
-      entryDesc=`均价${avgP.toFixed(3)} · 共${total}份(分${pos.lots.length}笔) · 首次${firstDate}<br>
+      const lotDesc=pos.lots.map(l=>`${l.price} × ${l.shares}份 (${l.date})`).join(' + ');
+      entryDesc=`均价${avgP.toFixed(3)} · 共${total}份 (分${pos.lots.length}笔) · 首次${firstDate}<br>
         <span style="font-size:11px;color:var(--text3)">${lotDesc}</span>
         <button class="pt-undo" onclick="undoLastLot('${code}')" title="撤销最近一次补仓">撤销上次补仓</button>`;
     }
@@ -671,21 +671,24 @@ function buildCard(code,etf,sig,holding,act,recent){
     let actionHtml='';
     if(!act.canExit && act.daysLeft>0){
       actionHtml=`<div class="pt-action pt-reduce">
-        ⚠️ ${act.type} - 均线出场信号已触发，但尚未满最短持仓 (还差 <b>${act.daysLeft}天</b>，共需${act.minHold}天)。<b>止损不受此限制</b>，请继续盯紧止损线。
+        ⚠️ ${act.type} - 均线出场信号已触发，但尚未满最短持仓 (还差<b>${act.daysLeft}天</b>，共需${act.minHold}天)。<b>止损不受此限制</b>，请继续盯紧止损线。
       </div>`;
     }else if(act.sellShares>0){
       actionHtml=`<div class="pt-action ${act.toFrac<=0?'pt-exit':'pt-reduce'}">
-        🔔 ${act.type} — 建议卖出 <b>${act.sellShares}份</b>（约${(act.sellShares*price).toFixed(0)}元，卖后剩余${Math.round((pos.remaining_shares-act.sellShares)/fullBase*100)}%仓位）
+        🔔 ${act.type} - 建议卖出 <b>${act.sellShares}份</b> (约${(act.sellShares*price).toFixed(0)}元，卖后剩余${Math.round((pos.remaining_shares-act.sellShares)/fullBase*100)}%仓位)
       </div>`;
     }else if(act.adxUpgrade){
       const upgradeShares=Math.max(0,Math.round(fullBase-pos.remaining_shares));
       const upgradeAmt=(upgradeShares*price).toFixed(0);
+      const fallingToday=chg<0;
       actionHtml=`<div class="pt-action pt-add">
         ⚡ ADX升破25，趋势由偏弱转强劲 - 建议补仓至全仓 (约需补入 <b>${upgradeShares}份</b>，约${upgradeAmt}元)
-      </div>`;
+      </div>${fallingToday?`<div class="pt-action pt-reduce" style="margin-top:6px">
+        💡 今日价格下跌中 - 建议等回踩MA${etf.fast||10} (${sig.maf}) 收阳站稳后再补仓，不建议在下跌途中直接执行
+      </div>`:''}`;
     }else if(act.addSignal){
       actionHtml=`<div class="pt-action pt-add">
-        🔔 ${act.type} — 今日出现回踩快线信号(MA10二级触发)，趋势仍强，若想加大仓位可点击"补仓"
+        🔔 ${act.type} - 今日出现回踩快线信号 (MA10二级触发)，趋势仍强，若想加大仓位可点击"补仓"
       </div>`;
     }
 
@@ -693,8 +696,8 @@ function buildCard(code,etf,sig,holding,act,recent){
     postrack=`<div class="postrack holding">
       <div class="pt-info"><span class="pt-tag">持仓中</span>
         ${entryDesc} · 已持 <b>${days}</b> 天<br>
-        ${fullBase>pos.remaining_shares?`还差 <b style="color:var(--blue)">${fullBase-pos.remaining_shares}份</b>(${100-remainPct}%) · `:'已满仓 · '}现值${mktVal.toFixed(0)}元
-        · 浮盈(扣入场费) <b style="color:${retC}">${retPct>=0?'+':''}${retPct.toFixed(2)}%</b>
+        ${fullBase>pos.remaining_shares?`还差 <b style="color:var(--blue)">${fullBase-pos.remaining_shares}份</b> (${100-remainPct}%) · `:'已满仓 · '}现值${mktVal.toFixed(0)}元
+        · 浮盈 (扣入场费) <b style="color:${retC}">${retPct>=0?'+':''}${retPct.toFixed(2)}%</b>
         (<span style="color:${pnlC}">${pnlYuan>=0?'+':''}${pnlYuan.toFixed(0)}元</span>)${soldNote}</div>
       <div class="pt-btns">
         <button class="pt-btn pt-add-btn" onclick="togglePosForm('${code}','af-')">➕ 补仓</button>
