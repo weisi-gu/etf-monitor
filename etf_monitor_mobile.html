@@ -672,7 +672,7 @@ function buildCard(code,etf,sig,holding,act,recent){
     postrack=`<div class="postrack holding">
       <div class="pt-info"><span class="pt-tag">持仓中</span>
         ${entryDesc} · 已持 <b>${days}</b> 天<br>
-        剩余 <b>${pos.remaining_shares}份</b>(${remainPct}%) · 现值${mktVal.toFixed(0)}元
+        ${fullBase>pos.remaining_shares?`还差 <b style="color:var(--blue)">${fullBase-pos.remaining_shares}份</b>(${100-remainPct}%) · `:'已满仓 · '}现值${mktVal.toFixed(0)}元
         · 浮盈(扣入场费) <b style="color:${retC}">${retPct>=0?'+':''}${retPct.toFixed(2)}%</b>
         (<span style="color:${pnlC}">${pnlYuan>=0?'+':''}${pnlYuan.toFixed(0)}元</span>)${soldNote}</div>
       <div class="pt-btns">
