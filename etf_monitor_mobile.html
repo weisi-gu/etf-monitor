@@ -607,9 +607,9 @@ function getSignal(ind,cfg){
   let alert_='';
   if(cxup&&(ts||tw))   alert_=`g|⚡ 金叉: MA${cfg.fast} 上穿 MA${cfg.mid}`;
   else if(cxdn) alert_=`r|⚡ 死叉: MA${cfg.fast} 下穿 MA${cfg.mid}${holding?' ⚠️ 持仓中，注意出场条件':''}`;
-  else if(bnce&&(ts||tw)&&r.pdi>r.mdi)  alert_=`a|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}): 收盘需收阳且不低于MA${cfg.mid}，方视为站稳`;
-  else if(bnce&&(ts||tw)&&r.pdi<=r.mdi) alert_=`r|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}): 空方占优，注意收盘是否跌破MA${cfg.mid}`;
-  else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast} (${r.maf.toFixed(3)}): 收盘需收阳且不低于MA${cfg.fast}，方视为站稳`;
+  else if(bnce&&(ts||tw)&&r.pdi>r.mdi)  alert_=`a|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}) - 收盘需收阳且不低于MA${cfg.mid}，视为站稳信号`;
+  else if(bnce&&(ts||tw)&&r.pdi<=r.mdi) alert_=`r|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}) - 空方占优，注意收盘是否跌破MA${cfg.mid}`;
+  else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast} (${r.maf.toFixed(3)}) - 收盘需收阳且不低于MA${cfg.fast}，视为站稳信号`;
   const tbadge=ts?`<span class="tbg" style="background:var(--green-bg);color:var(--green)">趋势强</span>`
     :tw?`<span class="tbg" style="background:var(--amber-bg);color:var(--amber)">趋势偏弱</span>`
     :`<span class="tbg" style="background:var(--bg3);color:var(--text3)">无趋势</span>`;
@@ -684,7 +684,7 @@ function buildCard(code,etf,sig,holding,act,recent){
       const upgradeAmt=(upgradeShares*price).toFixed(0);
       const fallingToday=chg<0;
       actionHtml=`<div class="pt-action pt-add">
-        ⚡ ADX升破25，趋势由偏弱转强劲 - 建议补仓至全仓 (约需补入 <b>${upgradeShares}份</b>，约${upgradeAmt}元)
+        ⚡ ADX升破25，趋势由偏弱转强劲 - 建议补仓至全仓 (约需补入<b>${upgradeShares}份</b>，约${upgradeAmt}元)
       </div>${fallingToday?`<div class="pt-action pt-reduce" style="margin-top:6px">
         💡 今日价格下跌中 - 建议等回踩MA${etf.fast||10} (${sig.maf}) 收阳站稳后再补仓，不建议在下跌途中直接执行
       </div>`:''}`;
