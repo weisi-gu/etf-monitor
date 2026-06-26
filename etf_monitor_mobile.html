@@ -335,7 +335,8 @@ function actualSignal(sig, pos, etf){
                   zeroReason:sig.zeroReason,canExit:true};
         } else {
           const daysLeft=minHold-holdDays;
-          return {type:`出场信号${reasonTag}（未满最短持仓）`,color:'var(--amber)',dot:'var(--amber)',
+          const exitLabel = sig.zeroReason==='chop' ? '震荡观望' : '趋势走坏';
+          return {type:`出场信号 [${exitLabel}] (未满最短持仓)`,color:'var(--amber)',dot:'var(--amber)',
                   sellShares:0,toFrac:remain,addSignal:false,
                   zeroReason:sig.zeroReason,canExit:false,daysLeft,minHold};
         }
@@ -345,9 +346,10 @@ function actualSignal(sig, pos, etf){
     if(sig.entry && target>=remain-0.001){
       return {type:'持仓中（出现加仓信号）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true};
     }
-    // ADX升级补仓：半仓持仓中 + ADX刚升破25 → 提示补仓至全仓
-    if(sig.trend_strong && remain < 0.99){
-      return {type:'持仓中（ADX升级 → 建议补仓至全仓）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:false,adxUpgrade:true};
+    // ADX升级补仓：半仓持仓中 + ADX今日刚升破25（昨日<25）→ 提示补仓至全仓
+    const adxJustCrossed = sig.trend_strong && sig.prevAdx!=null && sig.prevAdx < 25;
+    if(adxJustCrossed && remain < 0.99){
+      return {type:'持仓中 (ADX升级 -> 建议补仓至全仓)',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:false,adxUpgrade:true};
     }
     if(sig.trend_strong) return {type:'持仓中（趋势强）',color:'var(--green)',dot:'var(--green)',sellShares:0,addSignal:false};
     if(sig.trend_weak)   return {type:'持仓中（趋势偏弱）',color:'var(--amber)',dot:'var(--amber)',sellShares:0,addSignal:false};
@@ -612,11 +614,13 @@ function getSignal(ind,cfg){
     :`<span class="tbg" style="background:var(--bg3);color:var(--text3)">无趋势</span>`;
   const adx5ago=ind.length>=6?ind[ind.length-6].adx:null;
   const adxDelta=adx5ago!=null?(r.adx-adx5ago):null;
+  const prevAdx=ind.length>=2?ind[ind.length-2].adx:null;
   return{type,color,pos_,dot,alert_,tbadge,zeroReason,
     atrs:atrs.toFixed(3),fxs:fxs.toFixed(3),atrpct:((1-atrs/(r.close||1))*100).toFixed(1),
     maf:r.maf.toFixed(3),mam:r.mam.toFixed(3),mas:r.mas.toFixed(3),
     adx:r.adx.toFixed(1),pdi:r.pdi.toFixed(1),mdi:r.mdi.toFixed(1),
     adxDelta:adxDelta!=null?adxDelta.toFixed(1):null,
+    prevAdx:prevAdx!=null?prevAdx:null,
     slope:sl.toFixed(2),date:r.date,atr14:r.atr14.toFixed(4),close:r.close,
     trend_strong:ts,trend_weak:tw,chop,entry,atr_stop:atrs,fix_stop:fxs};
 }
@@ -667,7 +671,7 @@ function buildCard(code,etf,sig,holding,act,recent){
     let actionHtml='';
     if(!act.canExit && act.daysLeft>0){
       actionHtml=`<div class="pt-action pt-reduce">
-        ⚠️ ${act.type} — 均线出场信号已触发，但尚未满最短持仓（还差 <b>${act.daysLeft}天</b>，共需${act.minHold}天）。<b>止损不受此限制</b>，请继续盯紧止损线。
+        ⚠️ ${act.type} - 均线出场信号已触发，但尚未满最短持仓 (还差 <b>${act.daysLeft}天</b>，共需${act.minHold}天)。<b>止损不受此限制</b>，请继续盯紧止损线。
       </div>`;
     }else if(act.sellShares>0){
       actionHtml=`<div class="pt-action ${act.toFrac<=0?'pt-exit':'pt-reduce'}">
@@ -677,7 +681,7 @@ function buildCard(code,etf,sig,holding,act,recent){
       const upgradeShares=Math.max(0,Math.round(fullBase-pos.remaining_shares));
       const upgradeAmt=(upgradeShares*price).toFixed(0);
       actionHtml=`<div class="pt-action pt-add">
-        ⚡ ADX升破25，趋势由偏弱转强劲 — 建议补仓至全仓（约需补入 <b>${upgradeShares}份</b>，约${upgradeAmt}元）
+        ⚡ ADX升破25，趋势由偏弱转强劲 - 建议补仓至全仓 (约需补入 <b>${upgradeShares}份</b>，约${upgradeAmt}元)
       </div>`;
     }else if(act.addSignal){
       actionHtml=`<div class="pt-action pt-add">
