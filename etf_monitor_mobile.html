@@ -772,9 +772,19 @@ function buildCard(code,etf,sig,holding,act,recent){
 
   let stopHtml='';
   if(opts.stop&&price>0){
+    let fixStopPrice, fixStopPct;
+    if(holding && pos){
+      const avgP = pos.lots.reduce((s,l)=>s+l.price*l.shares,0) / totalShares(pos);
+      fixStopPrice = (avgP*(1-etf.fs)).toFixed(3);
+      fixStopPct   = (etf.fs*100).toFixed(0);
+    } else {
+      fixStopPrice = sig.fxs;
+      fixStopPct   = (etf.fs*100).toFixed(0);
+    }
+    const fixStopDist = price>0 ? ((price/parseFloat(fixStopPrice)-1)*100).toFixed(1) : null;
     stopHtml=`<div class="stops">
       <span class="sc atr">🛡 ATR移动止损 <b>${sig.atrs}</b>（-${sig.atrpct}%）</span>
-      <span class="sc fix">⊘ 固定止损 <b>${sig.fxs}</b>（-${(etf.fs*100).toFixed(0)}%）</span>
+      <span class="sc fix">⊘ 固定止损 <b>${fixStopPrice}</b>（-${fixStopPct}%）${fixStopDist&&holding?`<span style="font-size:10px;color:var(--text3);margin-left:3px">现价距此${fixStopDist}%</span>`:''}</span>
     </div>`;}
 
   let maHtml='';
