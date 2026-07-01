@@ -324,6 +324,22 @@ function actualSignal(sig, pos, etf){
     const holdDays=Math.max(0,Math.round((Date.now()-new Date(firstDate))/86400000));
     const minHold=(etf&&etf.type==='宽基稳定')?20:15;
     const canExit=holdDays>=minHold;
+
+    // ── 止损判断（不受最短持仓限制，优先级最高）──────────────────────
+    const price = sig.close || 0;
+    if(price > 0 && etf){
+      const _avgP = pos.lots.reduce((s,l)=>s+l.price*l.shares,0) / total;
+      const fixStop = _avgP * (1 - etf.fs);
+      const atrStop = parseFloat(sig.atr_stop) || 0;
+      const stop = Math.max(fixStop, atrStop);
+      if(stop > 0 && price <= stop){
+        const reason = price <= fixStop ? '固定止损' : 'ATR移动止损';
+        return {type:`🚨 止损出场 (${reason})`,color:'var(--red)',dot:'var(--red)',
+                sellShares:pos.remaining_shares,toFrac:0,addSignal:false,
+                zeroReason:'stop',canExit:true,isStop:true};
+      }
+    }
+
     if(target < remain - 0.001){
       const sellShares=round100((remain-target)*fullBase, pos.remaining_shares);
       if(target<=0){
@@ -344,7 +360,8 @@ function actualSignal(sig, pos, etf){
       return {type:`建议减仓至${Math.round(target*100)}%`,color:'var(--amber)',dot:'var(--amber)',sellShares,toFrac:target,addSignal:false,canExit:true};
     }
     if(sig.entry && target>=remain-0.001){
-      return {type:'持仓中（出现加仓信号）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true};
+      const entryVia = sig.bfast ? 'bfast' : sig.cxup ? 'cxup' : 'bnce';
+      return {type:'持仓中（出现加仓信号）',color:'var(--blue)',dot:'var(--blue)',sellShares:0,addSignal:true,needsTop:remain<target-0.05,entryVia,topShares:remain<target-0.05?Math.round((target-remain)*fullBase):0};
     }
     // ADX升级补仓：半仓持仓中 + ADX今日刚升破25（昨日<25）→ 提示补仓至全仓
     const adxJustCrossed = sig.trend_strong && sig.prevAdx!=null && sig.prevAdx < 25;
@@ -582,7 +599,7 @@ function recentEntrySignals(ind,lookback=4,ma10Trigger){
   return out; // daysAgo升序：最近的信号排第一
 }
 
-function getSignal(ind,cfg){
+function getSignal(ind,cfg,holding=false){
   if(ind.length<3) return{type:'数据不足',color:'var(--text4)',pos_:0,dot:'var(--text4)',tbadge:'',alert_:''};
   const r=ind[ind.length-1],p=ind[ind.length-2];
   const sl=r.slope||0;
@@ -689,9 +706,20 @@ function buildCard(code,etf,sig,holding,act,recent){
         💡 今日价格下跌中 - 建议等回踩MA${etf.fast||10} (${sig.maf}) 收阳站稳后再补仓，不建议在下跌途中直接执行
       </div>`:''}`;
     }else if(act.addSignal){
-      actionHtml=`<div class="pt-action pt-add">
-        🔔 ${act.type} - 今日出现回踩快线信号 (MA10二级触发)，趋势仍强，若想加大仓位可点击"补仓"
-      </div>`;
+      const via = act.entryVia||'';
+      const triggerDesc = via==='bfast' ? `回踩快线MA${etf.fast||10} (MA10二级触发)`
+                        : via==='cxup'  ? `金叉 MA${etf.fast||10}上穿MA${etf.mid||30}`
+                        :                 `回踩中轨MA${etf.mid||30} (${sig.mam})`;
+      if(act.needsTop){
+        const topAmt=(act.topShares*price).toFixed(0);
+        actionHtml=`<div class="pt-action pt-add">
+          📍 ${triggerDesc} - 当前仓位未满，建议补仓至全仓 (约需补入<b>${act.topShares}份</b>，约${topAmt}元)
+        </div>`;
+      } else {
+        actionHtml=`<div class="pt-action pt-add">
+          📍 当前仓位已达建议水平 - 今日出现${triggerDesc}，若趋势继续走强可点击"补仓"加仓，不强制操作
+        </div>`;
+      }
     }
 
     const defaultShares=act.sellShares>0?act.sellShares:pos.remaining_shares;
@@ -773,9 +801,11 @@ function buildCard(code,etf,sig,holding,act,recent){
   let stopHtml='';
   if(opts.stop&&price>0){
     let fixStopPrice, fixStopPct;
-    if(holding && pos){
-      const avgP = pos.lots.reduce((s,l)=>s+l.price*l.shares,0) / totalShares(pos);
-      fixStopPrice = (avgP*(1-etf.fs)).toFixed(3);
+    const _pos = holding ? positions[code] : null;
+    if(_pos && _pos.lots && _pos.lots.length>0){
+      const _total = _pos.lots.reduce((s,l)=>s+l.shares,0);
+      const _avgP  = _pos.lots.reduce((s,l)=>s+l.price*l.shares,0) / _total;
+      fixStopPrice = (_avgP*(1-etf.fs)).toFixed(3);
       fixStopPct   = (etf.fs*100).toFixed(0);
     } else {
       fixStopPrice = sig.fxs;
@@ -784,7 +814,7 @@ function buildCard(code,etf,sig,holding,act,recent){
     const fixStopDist = price>0 ? ((price/parseFloat(fixStopPrice)-1)*100).toFixed(1) : null;
     stopHtml=`<div class="stops">
       <span class="sc atr">🛡 ATR移动止损 <b>${sig.atrs}</b>（-${sig.atrpct}%）</span>
-      <span class="sc fix">⊘ 固定止损 <b>${fixStopPrice}</b>（-${fixStopPct}%）${fixStopDist&&holding?`<span style="font-size:10px;color:var(--text3);margin-left:3px">现价距此${fixStopDist}%</span>`:''}</span>
+      <span class="sc fix">⊘ 固定止损 <b>${fixStopPrice}</b>（-${fixStopPct}%）${fixStopDist&&holding?'<span style="font-size:10px;color:var(--text3);margin-left:3px">现价距此'+fixStopDist+'%</span>':''}</span>
     </div>`;}
 
   let maHtml='';
@@ -839,11 +869,13 @@ function renderAll(){
   if(!etfData||!etfData.etfs){return;}
   const entries=Object.entries(etfData.etfs).map(([code,etf])=>{
     const ind=calcInd(etf.bars,etf.fast,etf.mid,etf.slow);
-    const sig=getSignal(ind,etf);
     const pos=positions[code]||null;
     const holding=!!pos;
+    const sig=getSignal(ind,etf,holding);
     const act=actualSignal(sig,pos,etf);
-    const recent=!holding?recentEntrySignals(ind,4,etf.ma10_trigger):[];
+    const recentlyExited = history.some(h=>h.code===code &&
+      Math.round((Date.now()-new Date(h.exit_date))/86400000) <= 3);
+    const recent=(!holding && !recentlyExited) ? recentEntrySignals(ind,3,etf.ma10_trigger) : [];
     return {code,etf,sig,holding,act,recent};
   });
 
@@ -1028,7 +1060,7 @@ function exportPositions(){
     const etf=etfData.etfs[code];
     if(!etf) continue;
     const ind=calcInd(etf.bars,etf.fast,etf.mid,etf.slow);
-    const sig=getSignal(ind,etf);
+    const sig=getSignal(ind,etf,true);
     out[code]={
       name: etf.rt_name||etf.name,
       lots: pos.lots,
