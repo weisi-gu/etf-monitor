@@ -566,9 +566,27 @@ function calcInd(bars,fast,mid,slow){
   })).filter(r=>r.maf&&r.mam&&r.mas&&r.atr14&&r.adx!=null);
 }
 
+// 趋势确认入场：连续CONFIRM_DAYS天满足ts(或tw，且当天不满足ts)，即使从未金叉/回踩也直接入场
+// 用于捕捉"确认趋势后一路陡拉、几乎不给回踩机会"的行情，逐标的由trend_confirm开关控制(见etf_fetch.py)
+// 回测依据：tune_etf_config.py，全历史真实K线验证，对高波动主题类通常有效，对低波动/宽基类可能放大回撤
+const CONFIRM_DAYS=3;
+function isTsAt(r){const sl=r.slope||0; return r.maf>r.mam&&r.mam>r.mas&&r.close>r.mam&&sl>0.2&&r.adx>=25;}
+function isTwOnlyAt(r){
+  if(isTsAt(r)) return false;
+  const sl=r.slope||0;
+  return r.maf>r.mam&&r.mam>r.mas&&r.close>r.mam&&sl>0&&r.adx>=18&&r.adx<25;
+}
+function countStreak(ind,i,testFn){
+  let n=0;
+  for(let k=i;k>=0;k--){ if(!testFn(ind[k])) break; n++; }
+  return n;
+}
+
 // 单日的入场/趋势判定，供 getSignal 和"近期信号回顾"复用
 // ma10Trigger=true时：强趋势(ts)中价格回踩快线(MA10/20 ±1.5%~2%)也视为入场触发
-function entryAt(ind,i,ma10Trigger){
+// ma10Trial/trendConfirmTrial：试用档(历史不足4年，全样本判定通过，见tune_etf_config.py)
+// 试用档触发时entryAt只负责标记isTrialOnly，实际打对折的仓位逻辑在getSignal里处理
+function entryAt(ind,i,ma10Trigger,trendConfirm,ma10Trial,trendConfirmTrial){
   if(i<1) return null;
   const r=ind[i],p=ind[i-1];
   const sl=r.slope||0;
@@ -576,45 +594,70 @@ function entryAt(ind,i,ma10Trigger){
   const tw=r.maf>r.mam&&r.mam>r.mas&&r.close>r.mam&&sl>0&&r.adx>=18&&r.adx<25;
   const chop=r.adx<18;
   const cxup=p.maf<=p.mam&&r.maf>r.mam, bnce=r.low<=r.mam*1.015&&r.mam*0.99<=r.close&&r.close<=r.mam*1.02;
-  let bfast=false, viaFast=false;
-  const ma10Active=ma10Trigger&&ts&&r.adx>=30;  // 动态：ADX≥30才激活
+  let bfast=false;
+  const ma10Active=(ma10Trigger||ma10Trial)&&ts&&r.adx>=30;  // 动态：ADX≥30才激活
   if(ma10Active){
     bfast=r.low<=r.maf*1.015&&r.maf*0.99<=r.close&&r.close<=r.maf*1.02;
-    viaFast=bfast;
   }
-  const entry=(cxup||bnce||bfast)&&(ts||tw)&&!chop;
-  return{entry,ts,tw,chop,cxup,bnce,bfast,ma10Active,date:r.date,close:r.close};
+  let confirmEntry=false, confirmStreak=0;
+  if(trendConfirm||trendConfirmTrial){
+    const tsStreak=countStreak(ind,i,isTsAt);
+    if(tsStreak>=CONFIRM_DAYS){confirmEntry=true; confirmStreak=tsStreak;}
+    else{
+      const twStreak=countStreak(ind,i,isTwOnlyAt);
+      if(twStreak>=CONFIRM_DAYS){confirmEntry=true; confirmStreak=twStreak;}
+    }
+  }
+  const entry=(cxup||bnce||bfast||confirmEntry)&&(ts||tw)&&!chop;
+  const normalEntry=(cxup||bnce)&&(ts||tw)&&!chop;
+  const bfastIsTrial=bfast&&ma10Trial&&!ma10Trigger;
+  const confirmIsTrial=confirmEntry&&trendConfirmTrial&&!trendConfirm;
+  const isTrialOnly=!normalEntry&&(bfastIsTrial||confirmIsTrial);
+  return{entry,ts,tw,chop,cxup,bnce,bfast,ma10Active,confirmEntry,confirmStreak,isTrialOnly,date:r.date,close:r.close};
 }
 
 // 回顾最近几个交易日(不含今天)是否出现过未被捕捉的入场信号
 // lookback=4 → 检查"昨天"到"4天前"，共4个交易日
-function recentEntrySignals(ind,lookback=4,ma10Trigger){
+function recentEntrySignals(ind,lookback=4,ma10Trigger,trendConfirm,ma10Trial,trendConfirmTrial){
   const n=ind.length, out=[];
   for(let back=1;back<=lookback;back++){
     const i=n-1-back;
-    const e=entryAt(ind,i,ma10Trigger);
-    if(e&&e.entry) out.push({date:e.date,type:e.ts?'全仓':'半仓',price:e.close,
-      daysAgo:back,via:e.bfast?'回踩快线':e.cxup?'金叉':'回踩'});
+    const e=entryAt(ind,i,ma10Trigger,trendConfirm,ma10Trial,trendConfirmTrial);
+    if(e&&e.entry) out.push({date:e.date,type:(e.ts&&!e.isTrialOnly)?'全仓':'半仓',price:e.close,
+      daysAgo:back,via:e.bfast?'回踩快线':e.cxup?'金叉':e.confirmEntry?'趋势确认':'回踩',trial:e.isTrialOnly});
   }
   return out; // daysAgo升序：最近的信号排第一
 }
 
-function getSignal(ind,cfg,holding=false){
+function getSignal(ind,cfg,pos=null){
   if(ind.length<3) return{type:'数据不足',color:'var(--text4)',pos_:0,dot:'var(--text4)',tbadge:'',alert_:''};
+  const holding=!!pos;
   const r=ind[ind.length-1],p=ind[ind.length-2];
   const sl=r.slope||0;
-  const e=entryAt(ind,ind.length-1,cfg.ma10_trigger);
-  const{ts,tw,chop,entry,cxup,bnce,bfast,ma10Active}=e;
+  const e=entryAt(ind,ind.length-1,cfg.ma10_trigger,cfg.trend_confirm,cfg.ma10_trigger_trial,cfg.trend_confirm_trial);
+  const{ts,tw,chop,entry,cxup,bnce,bfast,ma10Active,confirmEntry,confirmStreak,isTrialOnly}=e;
   const down=r.maf<r.mam||r.close<r.mas;
   const cxdn=p.maf>=p.mam&&r.maf<r.mam, brk=r.close<r.mas;
   const exit_=cxdn||brk;
-  const atrs=r.close-cfg.atr_n*r.atr14, fxs=r.close*(1-cfg.fs);
+  // ATR移动止损的峰值基准：持仓中用"入场以来最高价"（与etf_alert.py/回测一致，只涨不跌的真正移动止损）
+  // 未持仓时用近20日最高价作为预览参考
+  let hi;
+  if(holding&&pos.lots&&pos.lots.length>0){
+    const entryDate=pos.lots.reduce((min,l)=>l.date<min?l.date:min,pos.lots[0].date);
+    const entryHighs=ind.filter(x=>x.date>=entryDate).map(x=>x.high);
+    hi=entryHighs.length?Math.max(...entryHighs):r.high;
+  }else{
+    const last20=ind.slice(-20);
+    hi=last20.length?Math.max(...last20.map(x=>x.high)):r.high;
+  }
+  const atrs=hi-cfg.atr_n*r.atr14, fxs=r.close*(1-cfg.fs);
   let type,color,pos_,dot,zeroReason='';
   if(chop||down){
     type='空仓观望';color='var(--text3)';pos_=0;dot='var(--text4)';
     // 区分"为什么是空仓"：止损/趋势走坏 vs 强度不足但方向未必差，纯展示用，不影响pos_判断
     zeroReason = down ? 'down' : 'chop';
   }
+  else if(entry&&ts&&isTrialOnly){type='建议入场（半仓·试用期）';color='var(--green)';pos_=.5;dot='#73c69e';}
   else if(entry&&ts){type='建议入场（全仓）';color='var(--green)';pos_=1;dot='var(--green)';}
   else if(entry&&tw){type='建议入场（半仓）';color='var(--green)';pos_=.5;dot='#73c69e';}
   else if(ts&&!exit_){type='持仓中（趋势强）';color='var(--green)';pos_=1;dot='var(--green)';}
@@ -626,7 +669,8 @@ function getSignal(ind,cfg,holding=false){
   else if(cxdn) alert_=`r|⚡ 死叉: MA${cfg.fast} 下穿 MA${cfg.mid}${holding?' ⚠️ 持仓中，注意出场条件':''}`;
   else if(bnce&&(ts||tw)&&r.pdi>r.mdi)  alert_=`a|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}) - 收盘需收阳且不低于MA${cfg.mid}，视为站稳信号`;
   else if(bnce&&(ts||tw)&&r.pdi<=r.mdi) alert_=`r|📍 回踩中轨MA${cfg.mid} (${r.mam.toFixed(3)}) - 空方占优，注意收盘是否跌破MA${cfg.mid}`;
-  else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast} (${r.maf.toFixed(3)}) - 收盘需收阳且不低于MA${cfg.fast}，视为站稳信号`;
+  else if(bfast&&ts) alert_=`a|📍 回踩快线MA${cfg.fast} (${r.maf.toFixed(3)}) - 收盘需收阳且不低于MA${cfg.fast}，视为站稳信号${isTrialOnly?'（试用档二级触发，仅半仓，历史不足4年）':''}`;
+  else if(confirmEntry) alert_=`g|🔶 趋势确认入场: ADX已持续${confirmStreak}天满足${ts?'强':'弱'}趋势条件，一直未出现回踩/金叉机会，直接入场（非常规触发，建议留意是否追高）${isTrialOnly?'\n⚠️ 试用档：历史不足4年，未经样本外验证，仅半仓，历史积累够后会自动转为确认档':''}`;
   const tbadge=ts?`<span class="tbg" style="background:var(--green-bg);color:var(--green)">趋势强</span>`
     :tw?`<span class="tbg" style="background:var(--amber-bg);color:var(--amber)">趋势偏弱</span>`
     :`<span class="tbg" style="background:var(--bg3);color:var(--text3)">无趋势</span>`;
@@ -871,11 +915,11 @@ function renderAll(){
     const ind=calcInd(etf.bars,etf.fast,etf.mid,etf.slow);
     const pos=positions[code]||null;
     const holding=!!pos;
-    const sig=getSignal(ind,etf,holding);
+    const sig=getSignal(ind,etf,pos);
     const act=actualSignal(sig,pos,etf);
     const recentlyExited = history.some(h=>h.code===code &&
       Math.round((Date.now()-new Date(h.exit_date))/86400000) <= 3);
-    const recent=(!holding && !recentlyExited) ? recentEntrySignals(ind,3,etf.ma10_trigger) : [];
+    const recent=(!holding && !recentlyExited) ? recentEntrySignals(ind,3,etf.ma10_trigger,etf.trend_confirm,etf.ma10_trigger_trial,etf.trend_confirm_trial) : [];
     return {code,etf,sig,holding,act,recent};
   });
 
@@ -1060,7 +1104,7 @@ function exportPositions(){
     const etf=etfData.etfs[code];
     if(!etf) continue;
     const ind=calcInd(etf.bars,etf.fast,etf.mid,etf.slow);
-    const sig=getSignal(ind,etf,true);
+    const sig=getSignal(ind,etf,pos);
     out[code]={
       name: etf.rt_name||etf.name,
       lots: pos.lots,
