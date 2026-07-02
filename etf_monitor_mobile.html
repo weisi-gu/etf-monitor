@@ -833,14 +833,10 @@ function buildCard(code,etf,sig,holding,act,recent){
     </div>`;
   }
 
-  // 趋势强但未开启MA10二级触发：仅高弹性标的显示提示（宽基稳定不推荐开启）
+  // 是否开启ma10_trigger/trend_confirm 由 tune_etf_config.py 用真实历史回测自动判定并写回
+  // etf_fetch.py，不再需要"当前ADX强"这种手动引导提示——旧提示已移除，避免和已验证的
+  // 结论（可能是"不建议"）互相矛盾。要查某标的的判定依据，看 tune_report.txt。
   let strongHint='';
-  if(!holding&&sig.trend_strong&&!etf.ma10_trigger&&etf.type==='高弹性'){
-    strongHint=`<div class="strong-hint">
-      💡 当前ADX=${sig.adx}，趋势强劲。若想在回踩MA${etf.fast}时也获得入场提示，
-      可在 etf_fetch.py 中为 ${code} 添加 <code>'ma10_trigger': True</code>（注意：会增加回撤风险，详见对比回测）
-    </div>`;
-  }
 
   let stopHtml='';
   if(opts.stop&&price>0){
