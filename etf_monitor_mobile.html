@@ -379,6 +379,7 @@ function buildCard(code,etf,sig,holding,act,recent){
       const via = act.entryVia||'';
       const triggerDesc = via==='bfast' ? `回踩快线MA${etf.fast||10} (MA10二级触发)`
                         : via==='cxup'  ? `金叉 MA${etf.fast||10}上穿MA${etf.mid||30}`
+                        : via==='confirmEntry' ? `趋势确认入场 (ADX已持续${sig.confirmStreak}天满足强趋势条件，非常规触发，建议留意是否追高)`
                         :                 `回踩中轨MA${etf.mid||30} (${sig.mam})`;
       if(act.needsTop){
         const topAmt=(act.topShares*price).toFixed(0);
