@@ -394,6 +394,32 @@ function getSignal(ind,cfg,pos=null){
   else if(tw&&!exit_){type='持仓中（趋势偏弱）';color='var(--amber)';pos_=.5;dot='var(--amber)';}
   else if(exit_){type='建议出场';color='var(--red)';pos_=0;dot='var(--red)';}
   else{type='空仓观望';color='var(--text3)';pos_=0;dot='var(--text4)';}
+
+  // 诊断明细：pos_降为0时，具体是哪个指标不达标——"趋势走坏"这个文案本身
+  // 混合了好几种不同情况(死叉/跌破慢线/强度门槛卡在中间)，容易让人误以为均线已经破位
+  let trendDiag='';
+  if(pos_<=0){
+    if(chop){
+      trendDiag=`ADX(${r.adx.toFixed(1)}) < 18，震荡市不判断趋势方向`;
+    }else if(down||exit_){
+      trendDiag = cxdn ? `死叉：MA${cfg.fast}(${r.maf.toFixed(3)}) 跌破 MA${cfg.mid}(${r.mam.toFixed(3)})`
+                       : `收盘价${r.close.toFixed(3)} 跌破慢线MA${cfg.slow}(${r.mas.toFixed(3)})`;
+    }else{
+      // 三线排列/价格位置本身仍正常，只是卡在"强/弱趋势"门槛之间——逐项找出具体卡在哪
+      const order=r.maf>r.mam&&r.mam>r.mas, above=r.close>r.mam;
+      const parts=[];
+      if(!order) parts.push(`三线未按快>中>慢排列 (MA${cfg.fast}=${r.maf.toFixed(3)} MA${cfg.mid}=${r.mam.toFixed(3)} MA${cfg.slow}=${r.mas.toFixed(3)})`);
+      else if(!above) parts.push(`收盘价${r.close.toFixed(3)} 未站上中线MA${cfg.mid}(${r.mam.toFixed(3)})`);
+      else{
+        const slopeOkTs=sl>0.2, adxOkTs=r.adx>=25, adxOkTw=r.adx>=18&&r.adx<25;
+        if(!slopeOkTs) parts.push(`5日斜率仅${sl.toFixed(2)}%，未超过强趋势门槛0.2%`);
+        if(slopeOkTs&&!adxOkTs) parts.push(`ADX(${r.adx.toFixed(1)})未达到强趋势门槛25`);
+        if(!adxOkTw) parts.push(`ADX(${r.adx.toFixed(1)})已超出弱趋势区间[18,25)`);
+        else if(!(sl>0)) parts.push(`斜率${sl.toFixed(2)}%未大于0`);
+      }
+      trendDiag = parts.length ? parts.join('；') : '趋势强度暂不满足持有门槛（三线排列/价格位置均正常，非破位）';
+    }
+  }
   let alert_='';
   if(cxup&&(ts||tw))   alert_=`g|⚡ 金叉: MA${cfg.fast} 上穿 MA${cfg.mid}`;
   else if(cxdn) alert_=`r|⚡ 死叉: MA${cfg.fast} 下穿 MA${cfg.mid}${holding?' ⚠️ 持仓中，注意出场条件':''}`;
@@ -407,7 +433,7 @@ function getSignal(ind,cfg,pos=null){
   const adx5ago=ind.length>=6?ind[ind.length-6].adx:null;
   const adxDelta=adx5ago!=null?(r.adx-adx5ago):null;
   const prevAdx=ind.length>=2?ind[ind.length-2].adx:null;  // 昨日ADX，用于判断ADX是否刚升破25
-  return{type,color,pos_,dot,alert_,tbadge,zeroReason,
+  return{type,color,pos_,dot,alert_,tbadge,zeroReason,trendDiag,
     atrs:atrs.toFixed(3),fxs:fxs.toFixed(3),atrpct:((1-atrs/(r.close||1))*100).toFixed(1),
     maf:r.maf.toFixed(3),mam:r.mam.toFixed(3),mas:r.mas.toFixed(3),
     adx:r.adx.toFixed(1),pdi:r.pdi.toFixed(1),mdi:r.mdi.toFixed(1),

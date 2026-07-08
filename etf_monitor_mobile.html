@@ -363,8 +363,9 @@ function buildCard(code,etf,sig,holding,act,recent){
         ⚠️ ${act.type} - 均线出场信号已触发，但尚未满最短持仓 (还差<b>${act.daysLeft}天</b>，共需${act.minHold}天)。<b>止损不受此限制</b>，请继续盯紧止损线。
       </div>`;
     }else if(act.sellShares>0){
+      const diagLine = (act.toFrac<=0 && sig.trendDiag) ? `<div style="font-size:11.5px;color:var(--text3);margin-top:4px">📊 具体原因：${sig.trendDiag}</div>` : '';
       actionHtml=`<div class="pt-action ${act.toFrac<=0?'pt-exit':'pt-reduce'}">
-        🔔 ${act.type} - 建议卖出 <b>${act.sellShares}份</b> (约${(act.sellShares*price).toFixed(0)}元，卖后剩余${Math.round((pos.remaining_shares-act.sellShares)/fullBase*100)}%仓位)
+        🔔 ${act.type} - 建议卖出 <b>${act.sellShares}份</b> (约${(act.sellShares*price).toFixed(0)}元，卖后剩余${Math.round((pos.remaining_shares-act.sellShares)/fullBase*100)}%仓位)${diagLine}
       </div>`;
     }else if(act.adxUpgrade){
       const upgradeShares=Math.max(0,Math.round(fullBase-pos.remaining_shares));
